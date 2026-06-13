@@ -1,0 +1,28 @@
+{
+  "name": "aida",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Aida — closed-captions for emotional subtext. An accessibility tool that reads what people mean beneath what they say.",
+  "scripts": {
+    "dev": "concurrently -k -n vite,api -c cyan,magenta \"vite\" \"node server/index.js\"",
+    "build": "vite build",
+    "start": "node server/index.js",
+    "grade": "node scripts/grade.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "vite": "^6.0.7"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
