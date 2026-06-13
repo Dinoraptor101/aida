@@ -1,0 +1,15 @@
+# One-click deploy blueprint for Render.
+# New → Blueprint → pick the Dinoraptor101/aida repo → set ANTHROPIC_API_KEY → Deploy.
+services:
+  - type: web
+    name: aida
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false        # prompted at deploy — never committed
+      - key: AIDA_MODEL
+        value: claude-opus-4-8

@@ -150,10 +150,13 @@ export async function checkOutgoing(partner, draft) {
     `often misread as rudeness. Two jobs:\n` +
     `1) MIRROR the emotion the draft actually carries back to them (so they can check ` +
     `it matches what they meant).\n` +
-    `2) GATE: if the draft would genuinely WOUND the recipient (attacks their ` +
-    `character/identity, contempt, cruelty), set safe:false with a gentle warning and a ` +
-    `reframe that keeps their INTENT without the wound. Bluntness, disagreement, or bad ` +
-    `news is NOT a wound — those stay safe:true.\n\n` +
+    `2) GATE — set safe:false in EITHER case:\n` +
+    `   (a) it would genuinely WOUND the recipient (attacks their character/identity, contempt, cruelty); OR\n` +
+    `   (b) its literal wording carries an alarming/DANGEROUS connotation (violence, death, self-harm, threats) ` +
+    `that likely diverges from the user's benign intent and could be badly misread — e.g. "blood bath" literally ` +
+    `reads as violence even if they meant a busy sale day.\n` +
+    `   When unsafe, give a gentle warning and a reframe that keeps their INTENT without the wound or the ` +
+    `dangerous misread. Bluntness, disagreement, or bad news is NOT unsafe — those stay safe:true.\n\n` +
     `Tentative, never scolding. Return ONLY JSON: {"emotion":"<1-2 words>",` +
     `"intensity":<0..1>,"mirror":"<one sentence: the emotion these words carry>",` +
     `"safe":<bool>,"warning":"<if unsafe: one gentle sentence, else "">",` +
