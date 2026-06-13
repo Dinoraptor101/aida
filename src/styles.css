@@ -519,15 +519,32 @@ input, textarea {
 
 /* Segmented Them / Me toggle — a clean control. */
 .segmented {
+  position: relative;
   display: flex;
   background: var(--paper-raised);
   border: 1px solid var(--hairline-strong);
   border-radius: var(--radius-sm);
   padding: 3px;
   margin-bottom: 11px;
-  gap: 3px;
+  gap: 0;
 }
+/* The sliding active indicator — the one piece of motion in the composer. */
+.seg-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  background: var(--paper);
+  border-radius: 7px;
+  box-shadow: 0 1px 2px rgba(43, 43, 43, 0.1);
+  transition: transform 0.22s ease;
+}
+.segmented[data-mode="me"] .seg-thumb { transform: translateX(100%); }
+@media (prefers-reduced-motion: reduce) { .seg-thumb { transition: none; } }
 .segmented button {
+  position: relative;
+  z-index: 1;
   flex: 1;
   -webkit-appearance: none; appearance: none;
   border: none;
@@ -537,12 +554,10 @@ input, textarea {
   border-radius: 7px;
   font-weight: 500;
   letter-spacing: 0.02em;
-  transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+  transition: color 0.22s ease;
 }
 .segmented button[aria-pressed="true"] {
-  background: var(--paper);
   color: var(--ink);
-  box-shadow: 0 1px 2px rgba(43, 43, 43, 0.1); /* active state */
 }
 .segmented button .seg-hint {
   display: block;

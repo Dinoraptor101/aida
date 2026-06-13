@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Intensity, Working } from './Bits.jsx'
 import { emotionStyle } from '../emotions.js'
 
@@ -127,9 +127,21 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
   const unsafe = fresh && check.safe === false
   const emo = check ? emotionStyle(check.emotion, check.family) : null
 
+  // Auto re-check: 5s after the last keystroke, when the Me-mode draft is dirty
+  // (never checked, or edited since the last check). The manual buttons still
+  // give an instant check; this just saves a tap when you pause.
+  const autoArmed = mode === 'me' && !!text.trim() && !busy && (!check || stale)
+  useEffect(() => {
+    if (!autoArmed) return undefined
+    const id = setTimeout(() => doCheck(), 5000)
+    return () => clearTimeout(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, autoArmed])
+
   return (
     <div className="composer">
-      <div className="segmented" role="group" aria-label="Who is this message from">
+      <div className="segmented" data-mode={mode} role="group" aria-label="Who is this message from">
+        <span className="seg-thumb" aria-hidden="true" />
         <button type="button" aria-pressed={mode === 'them'} onClick={() => switchMode('them')}>
           Them
           <span className="seg-hint">a message you got</span>
@@ -142,25 +154,25 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
 
       {mode === 'them' ? (
         <form onSubmit={submitReceive}>
-          <div className="composer-row">
-            <textarea
-              className="textarea"
-              value={text}
-              onChange={(e) => onText(e.target.value)}
-              placeholder="Paste what they sent you…"
-              rows={1}
-              disabled={busy === 'reading'}
-            />
-            <button className="btn btn-primary" type="submit" disabled={!text.trim() || busy === 'reading'}>
-              {busy === 'reading' ? 'Reading…' : 'Read'}
-            </button>
-          </div>
+          <textarea
+            className="textarea"
+            value={text}
+            onChange={(e) => onText(e.target.value)}
+            placeholder="Paste what they sent you…"
+            rows={2}
+            disabled={busy === 'reading'}
+          />
           {busy === 'reading' && (
-            <div style={{ marginTop: 9 }}>
+            <div style={{ marginTop: 10 }}>
               <Working label="Aida is reading this for you…" />
             </div>
           )}
           {error && <div className="inline-error">{error}</div>}
+          <div className="composer-actions">
+            <button className="btn btn-primary" type="submit" disabled={!text.trim() || busy === 'reading'}>
+              {busy === 'reading' ? 'Reading…' : 'Read'}
+            </button>
+          </div>
         </form>
       ) : (
         <div>
@@ -206,7 +218,7 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
                 </>
               )}
 
-              {stale && <p className="panel-k stale-note">edited — re-check to update</p>}
+              {stale && <p className="panel-k stale-note">edited — re-checking shortly…</p>}
             </div>
           )}
 
