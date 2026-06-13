@@ -6,3 +6,11 @@ data/store.json
 *.log
 .DS_Store
 .vercel
+
+# Internal — excluded from public repo
+WEBDRIVER_TASKS.md
+BUILD_DAY_GUIDE.md
+BUILD_DAY_TIMELINE.md
+PITCH.md
+docs/STATE.md
+.claude/reasoning_ledger.md

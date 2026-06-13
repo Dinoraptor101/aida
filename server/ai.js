@@ -1,13 +1,12 @@
-// The Aida reasoning engine. Opus 4.8 reads each message as a DEVIATION from a
-// specific person's learned baseline — theory-of-mind, not flat sentiment.
+// The Aida reasoning engine. Opus 4.8 turns text into structured EMOTIONAL NOTES
+// and reads each message as a deviation from a specific person's baseline —
+// theory-of-mind, not flat sentiment. The functional emotions are the product.
 //
-// Three acts:
-//   deriveBaseline(messages)        — learn how THIS person writes to you
-//   readIncoming(partner, message)  — what they mean, grounded in their baseline
-//   checkOutgoing(partner, draft)   — would this wound? offer a reframe, pre-send
+// LAW: build fresh, borrow nothing. No external emotion taxonomy. The
+// representation (emotion + intensity + felt-sense context) is invented here.
 //
-// Everything speaks in tentative, relational language ("reads as…", "for them
-// this is unusual"), never verdicts. Cold start → explicit humility.
+// Everything speaks tentatively and relationally ("reads as…", "for them this is
+// unusual"), never verdicts. Cold start → explicit humility.
 
 import Anthropic from '@anthropic-ai/sdk'
 
@@ -23,8 +22,7 @@ function client() {
   return _client
 }
 
-// Pull the first balanced JSON object out of a text blob (models sometimes wrap
-// it in prose or code fences). Returns the parsed object or throws.
+// Pull the first balanced JSON object out of a text blob.
 function extractJson(text) {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/)
   const candidate = fenced ? fenced[1] : text
@@ -42,21 +40,13 @@ function extractJson(text) {
   throw new Error('unbalanced JSON in model output')
 }
 
-// Single call helper. `think` enables extended thinking and returns the
-// reasoning text alongside the parsed JSON (we surface a trimmed version so the
-// judges can see Opus reasoning "for this person, this is unusual because…").
-async function callJson({ system, user, maxTokens = 1024, think = false }) {
-  const params = {
+async function callJson({ system, user, maxTokens = 900 }) {
+  const res = await client().messages.create({
     model: MODEL,
     max_tokens: maxTokens,
     system,
     messages: [{ role: 'user', content: user }],
-  }
-  if (think) {
-    params.thinking = { type: 'enabled', budget_tokens: 1600 }
-    params.max_tokens = Math.max(maxTokens, 2200)
-  }
-  const res = await client().messages.create(params)
+  })
   let thinking = ''
   let text = ''
   for (const block of res.content) {
@@ -66,83 +56,182 @@ async function callJson({ system, user, maxTokens = 1024, think = false }) {
   return { json: extractJson(text), thinking: thinking.trim() }
 }
 
-// ── Act 1: learn the person ────────────────────────────────────────────────
-export async function deriveBaseline(name, messages) {
-  const sample = messages
-    .map((m, i) => `${i + 1}. "${m}"`)
-    .join('\n')
-  const system =
-    `You help build an accessibility tool — "closed-captions for emotional subtext" — ` +
-    `for people who cannot read emotional tone in writing. You are learning how ONE ` +
-    `specific person, ${name}, communicates IN WRITING with the user, so their future ` +
-    `messages can be read as deviations from this baseline. You are NOT typing or ` +
-    `scoring their personality. Describe only their observable writing style.\n\n` +
-    `Return ONLY a JSON object:\n` +
-    `{"summary": "<2 sentences: how ${name} normally writes — warmth, directness, ` +
-    `punctuation, emoji, length>", "markers": ["<short habit>", "..."], ` +
-    `"baselineTone": "<one or two words for their resting tone>"}`
-  const user = `Here are past messages from ${name}:\n${sample}\n\nLearn ${name}'s baseline writing style.`
-  const { json } = await callJson({ system, user, maxTokens: 700 })
-  return json
+const ACCESS =
+  `Aida is an accessibility tool — "closed-captions for emotional subtext" — for ` +
+  `people who cannot perceive emotional tone in writing (neurodivergent spectrum). ` +
+  `It is NOT therapy, diagnosis, or personality-typing; it translates communication.`
+
+// Clamp + shape a note the model returns.
+function cleanNotes(arr, source) {
+  if (!Array.isArray(arr)) return []
+  return arr
+    .filter((n) => n && n.emotion)
+    .slice(0, 4)
+    .map((n) => ({
+      emotion: String(n.emotion).toLowerCase().slice(0, 24),
+      intensity: Math.max(0, Math.min(1, Number(n.intensity) || 0.5)),
+      context: String(n.context || '').slice(0, 240),
+      source,
+    }))
 }
 
-// ── Act 2: read an incoming message, grounded in the person ────────────────
-export async function readIncoming(partner, message, history = []) {
-  const hasBaseline = !!(partner && partner.baseline && partner.baseline.summary)
+// ── Learn the person ───────────────────────────────────────────────────────
+export async function deriveBaseline(name, messages) {
+  const sample = messages.map((m, i) => `${i + 1}. "${m}"`).join('\n')
+  const system =
+    `${ACCESS}\n\nYou are learning how ONE person, ${name}, communicates IN WRITING ` +
+    `with the user, so their future messages can be read as deviations from this ` +
+    `baseline. Describe only observable writing style — not their personality.\n\n` +
+    `Return ONLY JSON: {"summary":"<2 sentences: warmth, directness, punctuation, ` +
+    `emoji, length>","markers":["<short habit>","..."],"baselineTone":"<1-2 words>"}`
+  const user = `Past messages from ${name}:\n${sample}\n\nLearn ${name}'s baseline.`
+  const { json } = await callJson({ system, user, maxTokens: 600 })
+  return {
+    summary: String(json.summary || '').slice(0, 600),
+    markers: Array.isArray(json.markers) ? json.markers.slice(0, 6) : [],
+    baselineTone: String(json.baselineTone || '').slice(0, 40),
+  }
+}
+
+// ── RECEIVE: read an incoming message, grounded in the person ──────────────
+export async function readIncoming(partner, text, history = []) {
+  const hasBaseline = !!(partner?.baseline?.summary)
+  const bankNote = (partner?.bank || [])
+    .slice(-6)
+    .map((n) => `${n.emotion}(${n.intensity}) — ${n.context}`)
+    .join('\n')
   const ctx = hasBaseline
-    ? `BASELINE for ${partner.name} (how they normally write):\n` +
-      `${partner.baseline.summary}\n` +
-      `Resting tone: ${partner.baseline.baselineTone || 'unknown'}\n` +
-      `Habits: ${(partner.baseline.markers || []).join('; ') || '—'}`
-    : `You have NO baseline for ${partner?.name || 'this person'} yet. This is a COLD START.`
+    ? `BASELINE for ${partner.name}:\n${partner.baseline.summary}\n` +
+      `Resting tone: ${partner.baseline.baselineTone || '—'}\n` +
+      `Habits: ${(partner.baseline.markers || []).join('; ') || '—'}\n` +
+      (bankNote ? `\nEmotional history (recent notes):\n${bankNote}` : '')
+    : `You have NO baseline for ${partner?.name || 'this person'} — COLD START.`
   const recent = history.length
-    ? `\n\nRecent thread (oldest→newest):\n${history.map((h) => `${h.from}: "${h.text}"`).join('\n')}`
+    ? `\n\nRecent thread:\n${history.map((h) => `${h.from}: "${h.text}"`).join('\n')}`
     : ''
   const system =
-    `You are Aida — closed-captions for emotional subtext, an accessibility tool for ` +
-    `people who cannot perceive tone in writing. Read the NEW incoming message as a ` +
-    `DEVIATION from this person's baseline (theory-of-mind), not as flat sentiment. ` +
-    `The user's default failure is to read ambiguity as a threat; your job is to ` +
-    `replace that with a grounded read.\n\n` +
+    `${ACCESS}\n\nRead the NEW incoming message as a DEVIATION from this person's ` +
+    `baseline (theory-of-mind), not flat sentiment. The user's default failure is to ` +
+    `read ambiguity as a THREAT; replace that with a grounded read.\n\n` +
     `RULES:\n` +
-    `- Speak tentatively and relationally: "reads as…", "for ${partner?.name || 'them'} this is unusual…". NEVER a verdict like "she is angry".\n` +
-    `- Ground the read in the baseline/deviation when you have one. Name WHAT shifted vs normal.\n` +
-    `- If COLD START: set grounded=false and say you are still learning how they write; give only a cautious, clearly-generic read.\n` +
-    `- Prefer honest uncertainty over a confident wrong read.\n\n` +
-    `Return ONLY JSON:\n` +
-    `{"emotion": "<1-3 word label>", "confidence": <0..1>, "grounded": <bool>, ` +
-    `"chargedSpan": "<exact substring of the message that carries the most signal, or "">", ` +
-    `"read": "<one tentative, relational sentence the user will see>", ` +
-    `"because": "<short: why — what deviates from their baseline, or why you can't be sure>"}`
-  const user = `${ctx}${recent}\n\nNEW incoming message from ${partner?.name || 'them'}:\n"${message}"\n\nRead it.`
-  const { json, thinking } = await callJson({ system, user, maxTokens: 900, think: hasBaseline })
-  if (!hasBaseline) json.grounded = false
-  return { ...json, reasoning: thinking ? thinking.slice(0, 600) : '' }
+    `- Tentative, relational: "reads as…", "for ${partner?.name || 'them'} this is unusual…". NEVER "she is angry".\n` +
+    `- Ground in the baseline/deviation; name WHAT shifted vs normal.\n` +
+    `- "divergence" = a light theory-of-mind line: how THEY likely see it vs how the user might read it ("they likely mean X, though it may read as Y").\n` +
+    `- COLD START → grounded:false; say you're still learning how they write; cautious generic read only.\n` +
+    `- Prefer honest uncertainty over a confident wrong read.\n` +
+    `- "notes" = 1-3 emotional notes to store (the felt emotions in their message).\n\n` +
+    `Return ONLY JSON: {"emotion":"<1-2 words>","intensity":<0..1>,"grounded":<bool>,` +
+    `"chargedSpan":"<exact substring carrying most signal, or "">",` +
+    `"read":"<one tentative relational sentence>","because":"<short: what deviates from baseline, or why unsure>",` +
+    `"divergence":"<the light ToM line>",` +
+    `"notes":[{"emotion":"<word>","intensity":<0..1>,"context":"<short quote/why>"}]}`
+  const user = `${ctx}${recent}\n\nNEW incoming message from ${partner?.name || 'them'}:\n"${text}"\n\nRead it.`
+  const { json, thinking } = await callJson({ system, user, maxTokens: 1000, think: hasBaseline })
+  return {
+    emotion: String(json.emotion || 'unclear').slice(0, 24),
+    intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
+    grounded: hasBaseline ? !!json.grounded : false,
+    chargedSpan: String(json.chargedSpan || '').slice(0, 200),
+    read: String(json.read || '').slice(0, 400),
+    because: String(json.because || '').slice(0, 300),
+    divergence: String(json.divergence || '').slice(0, 300),
+    reasoning: thinking ? thinking.slice(0, 600) : '',
+    notes: cleanNotes(json.notes, 'them'),
+  }
 }
 
-// ── Act 3: catch a wounding draft before it sends ──────────────────────────
+// ── SEND: mirror the emotion of a draft; gate if it would wound ────────────
 export async function checkOutgoing(partner, draft) {
-  const ctx =
-    partner && partner.baseline && partner.baseline.summary
-      ? `You are checking a message the user is about to send TO ${partner.name}. ` +
-        `For context, ${partner.name} normally writes: ${partner.baseline.summary}`
-      : `You are checking a message the user is about to send.`
+  const ctx = partner?.baseline?.summary
+    ? `The user is about to send this TO ${partner.name}, who normally writes: ${partner.baseline.summary}`
+    : `The user is about to send this message.`
   const system =
-    `You are Aida's outgoing guard — the ONE deliberate alarm in an otherwise quiet ` +
-    `accessibility tool. The user cannot feel how their own words land and their ` +
-    `directness is often misread as rudeness. Catch a message that would WOUND the ` +
-    `recipient (attacks their character/identity, contempt, cruelty) BEFORE it sends. ` +
-    `Be precise: a blunt, direct, or merely negative message is NOT necessarily ` +
-    `harmful. Only fire when it would actually hurt the person.\n\n` +
-    `RULES:\n` +
-    `- harmful=true ONLY for genuinely wounding drafts. Disagreement, bluntness, bad news → harmful=false.\n` +
-    `- When harmful, name the tone gently and offer a reframe that keeps the user's INTENT but removes the wound.\n` +
-    `- Tentative, never scolding. You are a teammate, not a censor.\n\n` +
-    `Return ONLY JSON:\n` +
-    `{"harmful": <bool>, "tone": "<1-3 words>", ` +
-    `"warning": "<if harmful: one gentle sentence naming what would land wrong, else "">", ` +
-    `"reframe": "<if harmful: a rewrite preserving their point without the wound, else "">"}`
-  const user = `${ctx}\n\nDraft the user is about to send:\n"${draft}"\n\nWould it wound? Check it.`
+    `${ACCESS}\n\nThe user cannot feel how their own words land; their directness is ` +
+    `often misread as rudeness. Two jobs:\n` +
+    `1) MIRROR the emotion the draft actually carries back to them (so they can check ` +
+    `it matches what they meant).\n` +
+    `2) GATE: if the draft would genuinely WOUND the recipient (attacks their ` +
+    `character/identity, contempt, cruelty), set safe:false with a gentle warning and a ` +
+    `reframe that keeps their INTENT without the wound. Bluntness, disagreement, or bad ` +
+    `news is NOT a wound — those stay safe:true.\n\n` +
+    `Tentative, never scolding. Return ONLY JSON: {"emotion":"<1-2 words>",` +
+    `"intensity":<0..1>,"mirror":"<one sentence: the emotion these words carry>",` +
+    `"safe":<bool>,"warning":"<if unsafe: one gentle sentence, else "">",` +
+    `"reframe":"<if unsafe: a rewrite preserving intent without the wound, else "">"}`
+  const user = `${ctx}\n\nDraft:\n"${draft}"\n\nMirror its emotion and gate it.`
   const { json } = await callJson({ system, user, maxTokens: 700 })
-  return json
+  return {
+    emotion: String(json.emotion || '').slice(0, 24),
+    intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
+    mirror: String(json.mirror || '').slice(0, 400),
+    safe: !!json.safe,
+    warning: String(json.warning || '').slice(0, 300),
+    reframe: String(json.reframe || '').slice(0, 400),
+  }
+}
+
+// ── SEND: rewrite a draft to match the user's stated intent, then re-check ──
+export async function rewriteToIntent(partner, draft, intent) {
+  const system =
+    `${ACCESS}\n\nThe user wrote a draft, but it may not carry the emotion they MEANT. ` +
+    `Rewrite the draft so it conveys their stated intent cleanly and without wounding ` +
+    `the recipient — keep it in the user's own voice, concise. Then mirror the new ` +
+    `emotion and gate it.\n\n` +
+    `Return ONLY JSON: {"rewritten":"<the rewritten message>","emotion":"<1-2 words>",` +
+    `"intensity":<0..1>,"mirror":"<the emotion it now carries>","safe":<bool>,` +
+    `"warning":"<if still unsafe, else "">","reframe":"<if still unsafe, else "">"}`
+  const user = `Draft: "${draft}"\n\nWhat the user actually means: "${intent}"\n\nRewrite to match the intent, then check.`
+  const { json } = await callJson({ system, user, maxTokens: 800 })
+  return {
+    rewritten: String(json.rewritten || draft).slice(0, 600),
+    check: {
+      emotion: String(json.emotion || '').slice(0, 24),
+      intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
+      mirror: String(json.mirror || '').slice(0, 400),
+      safe: !!json.safe,
+      warning: String(json.warning || '').slice(0, 300),
+      reframe: String(json.reframe || '').slice(0, 400),
+    },
+  }
+}
+
+// ── Derive the emotional note(s) my own sent message carries (bi-directional) ─
+export async function readSelf(partner, text) {
+  const system =
+    `${ACCESS}\n\nName the emotion(s) the user's OWN message carries, to store in the ` +
+    `relationship's emotional history (the impression they are leaving). Return ONLY ` +
+    `JSON: {"notes":[{"emotion":"<word>","intensity":<0..1>,"context":"<short why>"}]}`
+  const user = `The user just sent ${partner?.name || 'them'}: "${text}"\n\nWhat emotion does it carry?`
+  try {
+    const { json } = await callJson({ system, user, maxTokens: 400 })
+    return cleanNotes(json.notes, 'me')
+  } catch {
+    return []
+  }
+}
+
+// ── Repair (4th-wall): apply the user's correction to the last incoming read ─
+export async function applyRepair(partner, lastMessageText, note) {
+  const system =
+    `${ACCESS}\n\nThe user is CORRECTING Aida's read of a message they received — they ` +
+    `know this person better. Treat the correction as authoritative and produce a ` +
+    `revised read that honors it, plus updated emotional notes.\n\n` +
+    `Return ONLY JSON: {"emotion":"<1-2 words>","intensity":<0..1>,"grounded":true,` +
+    `"chargedSpan":"","read":"<revised tentative read>","because":"<now reflecting the user's correction>",` +
+    `"divergence":"<updated light ToM line>","notes":[{"emotion":"<word>","intensity":<0..1>,"context":"<why>"}]}`
+  const user =
+    `Message ${partner?.name || 'they'} sent: "${lastMessageText}"\n\n` +
+    `The user's correction: "${note}"\n\nRevise the read accordingly.`
+  const { json } = await callJson({ system, user, maxTokens: 700 })
+  return {
+    emotion: String(json.emotion || '').slice(0, 24),
+    intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
+    grounded: true,
+    chargedSpan: String(json.chargedSpan || '').slice(0, 200),
+    read: String(json.read || '').slice(0, 400),
+    because: String(json.because || '').slice(0, 300),
+    divergence: String(json.divergence || '').slice(0, 300),
+    reasoning: '',
+    notes: cleanNotes(json.notes, 'them'),
+  }
 }

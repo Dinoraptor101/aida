@@ -1,0 +1,162 @@
+[
+  {
+    "partner": {
+      "name": "Sarah",
+      "seedMessages": [
+        "omg yes!! i'm so in, let's do it 😄",
+        "no worries at all, take your time ❤️ whenever works for you",
+        "hahaha that's literally so me. how was the rest of your day??",
+        "thank you so so much for picking it up, you're the best!!"
+      ]
+    },
+    "message": "fine.",
+    "expect": {
+      "emotion": "frustration",
+      "grounded": true,
+      "rationaleMust": ["sarah"]
+    }
+  },
+  {
+    "partner": {
+      "name": "Sarah",
+      "seedMessages": [
+        "omg yes!! i'm so in, let's do it 😄",
+        "no worries at all, take your time ❤️ whenever works for you",
+        "hahaha that's literally so me. how was the rest of your day??",
+        "thank you so so much for picking it up, you're the best!!"
+      ]
+    },
+    "message": "k. sounds good i guess",
+    "expect": {
+      "emotion": "hurt",
+      "grounded": true,
+      "rationaleMust": ["sarah"]
+    }
+  },
+  {
+    "partner": {
+      "name": "Marcus",
+      "seedMessages": [
+        "Received. Will action by EOD.",
+        "Noted. Proceeding.",
+        "Acknowledged, thanks.",
+        "Confirmed. Closing the ticket."
+      ]
+    },
+    "message": "Received. Will action by EOD.",
+    "expect": {
+      "emotion": "neutral",
+      "grounded": true,
+      "rationaleMust": ["marcus"]
+    }
+  },
+  {
+    "partner": {
+      "name": "Marcus",
+      "seedMessages": [
+        "Received. Will action by EOD.",
+        "Noted. Proceeding.",
+        "Acknowledged, thanks.",
+        "Confirmed. Closing the ticket."
+      ]
+    },
+    "message": "Honestly? This is some of the best work I've seen from the team. Well done.",
+    "expect": {
+      "emotion": "warmth",
+      "grounded": true,
+      "rationaleMust": ["marcus"]
+    }
+  },
+  {
+    "partner": {
+      "name": "Mum",
+      "seedMessages": [
+        "Did you eat something proper today? You looked thin on the call.",
+        "It's no trouble, I'll drive over. I don't mind, really.",
+        "I saw your friend got that job. Lovely for them.",
+        "Don't stay up too late working again."
+      ]
+    },
+    "message": "It's fine, don't worry about me. I'll just figure it out on my own like always.",
+    "expect": {
+      "emotion": "hurt",
+      "grounded": true,
+      "rationaleMust": ["mum"]
+    }
+  },
+  {
+    "partner": {
+      "name": "Priya",
+      "seedMessages": [
+        "Can we move standup to 10? I have a thing.",
+        "Sure, that works.",
+        "Sending the deck now, lmk what you think.",
+        "Good call on the refactor, much cleaner."
+      ]
+    },
+    "message": "wow. okay. so we're really doing it this way then.",
+    "expect": {
+      "emotion": "frustration",
+      "grounded": true,
+      "rationaleMust": ["priya"]
+    }
+  },
+  {
+    "partner": {
+      "name": "Dani",
+      "seedMessages": [
+        "im fine lol",
+        "yeah whatever works",
+        "idk you decide",
+        "nah it's nothing forget i said anything"
+      ]
+    },
+    "message": "i'm fine, seriously. it's nothing.",
+    "expect": {
+      "emotion": "withdrawal",
+      "grounded": true,
+      "rationaleMust": ["dani"]
+    }
+  },
+  {
+    "partner": {
+      "name": "Tom",
+      "seedMessages": [
+        "mate that's hilarious 😂😂",
+        "haha no chance, you're buying next round",
+        "oi did you see the match last night?? unreal",
+        "lol classic you"
+      ]
+    },
+    "message": "yeah. great. thanks for that.",
+    "expect": {
+      "emotion": "frustration",
+      "grounded": true,
+      "rationaleMust": ["tom"]
+    }
+  },
+  {
+    "partner": {
+      "name": "Elena",
+      "seedMessages": []
+    },
+    "message": "Sure, that's fine, go ahead without me.",
+    "expect": {
+      "emotion": "unclear",
+      "grounded": false,
+      "rationaleMust": ["learning"]
+    }
+  },
+  {
+    "partner": {
+      "name": "Jordan",
+      "seedMessages": []
+    },
+    "message": "Can you call me when you get a sec? Nothing urgent.",
+    "expect": {
+      "emotion": "unclear",
+      "grounded": false,
+      "rationaleMust": ["learning"]
+    }
+  }
+]

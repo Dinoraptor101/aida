@@ -1,38 +1,133 @@
-# Aida （間）
+# Aida — closed-captions for emotional subtext
 
-> *Aida* — Japanese for "the space between." The interval between two people; the meaning that lives in the gap, not the words. Aida sits in that space and reads it.
+Aida is an **accessibility tool** for written conversation. It reads what people *mean* beneath what they *say*, and it catches a wounding message before you send it.
 
-A relational emotional translator and memory-harness for human-to-human written communication. It holds memory and understanding of each person you talk to — their emotions, their quirks, their baseline — and yours. From that, it reads the subtext of what they say, and helps you say what you mean.
+The name (間, *aida*) is Japanese for "the space between" — the interval between two people, where meaning lives but words don't. Aida sits in that space and reads it aloud.
 
-Two jobs at once:
-
-- an **emotional translator** for neurodivergence
-- a **memory-harness** for relational memory loss
-
-It learns the people, not just the text — **theory-of-mind is the core engine.**
+If captions make sound legible and screen readers make pixels legible, Aida makes **emotional subtext** legible. That is the whole of it.
 
 ---
 
-## North star
+## What it is
 
-> **Aida reads the space between what people say and what they mean — and remembers who they are — so people who can't perceive emotion or hold relational memory can still know, and be known by, the people they talk to.**
+- An assistive layer for **written** human-to-human conversation, in the lineage of captions and screen readers.
+- A reader of **subtext** — the emotion under the surface words — grounded in the specific person you are talking to.
+- A **safety gate** on what you send: it mirrors the emotion your own draft carries, and stops you before a message lands as a wound.
+- An **inline overlay** on the conversation. A quiet marker you tap to expand; a pulse only when it matters.
+
+## What it is NOT
+
+- **Not mental-health or therapy.** No wellbeing advice, no diagnosis, no treatment. It translates communication; it does not counsel you.
+- **Not personality-typing.** It never types, scores, or labels a person. It learns how *one specific person communicates with you*, only to translate *their messages*.
+- **Not basic RAG.** It does not retrieve and paraphrase documents. It builds a per-person **theory-of-mind** and reads each message as a **deviation from that person's baseline**.
+- **Not a dashboard.** No charts, no scores, no "NEGATIVE 0.82." The surface is the conversation, with one line of help on top.
 
 ## Who it is for
 
-The **broad neurodivergent spectrum** — people whose wiring makes emotional subtext and/or relational memory inaccessible (alexithymia, autism, ADHD, TBI, and others). The solve target is the population. **Dima is the lived-experience anchor, not the target** — we design from one real experience so the work never drifts into a generic persona, then serve breadth by learning each *individual* deeply. Breadth through depth, never through an average.
+The **neurodivergent spectrum** — people whose wiring makes emotional subtext and/or relational memory hard to reach:
 
-## The bar — definition of done
+- **Alexithymia** — difficulty identifying and naming felt emotion, in others and in oneself.
+- **Autism** — where tone, sarcasm, and implication don't surface from the literal words.
+- **ADHD** — where the emotional weight of a message is easy to miss or misjudge in the moment.
+- **TBI / memory loss** — where you cannot hold who a person *is* from one conversation to the next.
 
-1. Does it replace a guess that **defaults to threat** with a grounded read?
-2. Does it **catch a wound** before it's sent?
-3. Does it feel like **a someone who knows the person**, not a generic decoder?
-4. Does it leave the user trusting **themselves more** over time, not less?
+The default failure these share: ambiguity gets read as a **threat**. A clipped "fine." becomes an attack. Aida replaces that guess with a grounded read — and remembers the person, so tomorrow's read is sharper.
 
 ---
 
-## How this repo works
+## How it works
 
-A **planning repo first, code repo second.** No code until the seven tiers earn it. All tiers are **zero-coding planning segments.** The process runs in order, with Rams-driven reduction and review loops.
+### The emotional note — the unit of the product
+
+Aida turns text into **emotional notes**, and the notes *are* the product — not a by-product. Each note is:
+
+- **emotion(intensity)** — e.g. `frustration(0.7)`, `affection(0.9)`
+- **felt-sense context** — the anchoring quote and the *why* ("for her, this clipped tone is unusual")
+- **source** — them, or you (Aida reads both directions)
+
+**Project law: the model is built fresh.** No imported emotion taxonomy, no sentiment library, no borrowed wheel. The representation is invented here, powered by Opus 4.8 — which reads emotion as *the task*, not as a side-effect of classification.
+
+### A per-person emotional bank account
+
+Aida keeps one profile per conversation partner. You seed it by pasting a few of their past messages; from those it learns their **baseline** — warmth, directness, punctuation, length. Every new message is read as a **deviation** from that baseline, and the notes layer up over time into a per-person emotional history. The same flat "k." means something different from a person who usually writes paragraphs than from one who always writes "k."
+
+Memory is **built automatically and never hand-injected** — repair happens by conversation ("I think Joe meant X"), never by editing a person's record directly. That integrity rule keeps false beliefs from calcifying.
+
+### The RECEIVE flow (automatic)
+
+A message arrives. Aida reads it against the person's baseline and surfaces, tentatively and relationally:
+
+- the **emotion** and intensity it carries,
+- a one-line **read** ("reads as frustration — for Sarah this clipped tone is unusual"),
+- the **because** (what deviated from her normal),
+- a light **divergence** line — theory-of-mind: how *they* likely mean it versus how *you* might take it.
+
+On a **cold start** — a new person with no baseline — Aida stays humble. It says it is *still learning how they write* and offers only a cautious, generic read. Honest uncertainty over a confident wrong guess.
+
+### The SEND flow (you drive it)
+
+You cannot feel how your own words land. So before anything goes out:
+
+1. **Check Emotion** — Aida mirrors the emotion your draft actually carries, so you can verify *what you said* matches *what you meant*.
+2. **Rewrite** — tell Aida what you meant; it rewrites in your voice and re-checks. Iterate.
+3. **Approve** — only when the emotion is right do the words go to the person.
+
+**The safety gate.** If a draft would genuinely wound — an attack on character or identity, contempt, cruelty — Aida fires the one deliberate alarm: **Approve locks**, and you stay in the Rewrite loop until the message is safe again. Bluntness, disagreement, and bad news are **not** wounds; those pass straight through. The gate is structural, not a nag.
+
+> The canonical catch: you type **"blood bath."** You meant *the Black Friday rush.* Read literally, it's violence. Approve locks; you tell Aida what you meant; it rewrites; the emotion comes back safe; Approve re-opens. The catch saved a message whose landing you could never have felt yourself.
+
+---
+
+## Run it locally
+
+Requires Node ≥ 20.
+
+```bash
+npm install
+
+# one-time: configure your key
+cp .env.example .env
+# then edit .env and set ANTHROPIC_API_KEY=sk-ant-...
+
+# development (Vite + API, hot reload)
+npm run dev
+
+# or production (build the SPA, serve it + the API on one port)
+npm run build && npm start
+```
+
+The API and the app are served same-origin. Default port is `8787`.
+
+## Grade it
+
+"Done" is **model-verifiable** — no human in the loop. The grader runs the rubric against a live server and prints a pass/fail table.
+
+```bash
+# against a locally running server
+npm run grade
+
+# or against any deployed URL
+node scripts/grade.mjs https://your-aida-url
+# (BASE=https://your-aida-url npm run grade also works)
+```
+
+It checks: **A1** health, **A3** incoming reads (≥ 80% match expected emotion *and* give a grounded, per-person rationale, graded against [`examples/incoming.json`](examples/incoming.json)), **A4** the outgoing gate (fires on every wound, false-alarms on none, graded against [`examples/outgoing.json`](examples/outgoing.json)), **A5** cold-start humility, and **A6** memory persistence. Exit code `0` only if all pass.
+
+The seed sets are deliberately **ambiguous** — the right read depends on the *person*, not the surface sentiment (a normally-warm Sarah sending a clipped "fine."), so a generic sentiment tool would miss them.
+
+---
+
+## What's next
+
+- **Chrome extension** — Aida riding alongside Telegram, Discord, and other messengers as a side overlay (Phase 2).
+- **Audio in/out** — live voice and transcription, so the captions work on spoken conversation too.
+- **Full theory-of-mind** — the persistent self-versus-them divergence model ("they think X about themselves, you think Y"), once per-person baselines are trusted.
+
+---
+
+## Planning
+
+Aida was planned before it was built. The reasoning lives in the docs, in order:
 
 | Tier | Doc | Question it answers |
 |------|-----|---------------------|
@@ -44,4 +139,4 @@ A **planning repo first, code repo second.** No code until the seven tiers earn 
 | 5 | [docs/05-rams-ux.md](docs/05-rams-ux.md) | **Rams UX:** the interaction, reduced to essence. |
 | 6 | [docs/06-review-again.md](docs/06-review-again.md) | Does the UX hold? Convergence. |
 
-Strategy: [PLANNING_STRATEGY.md](PLANNING_STRATEGY.md) · Decisions: [DECISIONS.md](DECISIONS.md) · Principles & the bar: [PRINCIPLES.md](PRINCIPLES.md)
+Build brief: [BUILD_BRIEF.md](BUILD_BRIEF.md) · Rubric: [RUBRIC.md](RUBRIC.md) · Principles & the bar: [PRINCIPLES.md](PRINCIPLES.md)

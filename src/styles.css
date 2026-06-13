@@ -1,0 +1,685 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Aida — wabi-sabi × Dieter Rams.
+   Warm paper & soft ink, one restrained accent. No decoration, no ambient
+   shadow, hairlines only where they separate meaning. Mobile-first (375px).
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Muted natural warmth — never pure black/white, never vibrant. */
+  --paper: #f4f1ea;       /* warm paper background */
+  --paper-raised: #faf8f3;/* a faintly lighter surface (cards, their bubbles) */
+  --ink: #2b2b2b;         /* soft ink text */
+  --ink-soft: #6b665d;    /* secondary text */
+  --ink-faint: #9c968a;   /* tertiary / hints */
+  --hairline: #e0dccf;    /* hairline borders */
+  --hairline-strong: #cfc9bb;
+
+  /* The ONE restrained accent — muted terracotta. */
+  --accent: #b08463;
+  --accent-ink: #8a6347;  /* accent text on paper, for contrast */
+  --accent-wash: #ece2d7; /* faint accent tint, for charged spans / my bubble */
+
+  /* The one deliberate alarm — grounding, not a scary error. A deeper, calmer
+     terracotta-clay, never a fire-engine red. */
+  --alarm: #a85c4a;
+  --alarm-ink: #8f4434;
+  --alarm-wash: #efe0d9;
+
+  --sage: #7c8a72;        /* the "safe / settled" cue, used sparingly */
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --tap: 44px;            /* minimum comfortable tap target */
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, "Noto Sans", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* The app is a single phone-width column, centred on larger screens. */
+.app {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+button:disabled { cursor: default; }
+
+input, textarea {
+  font-family: inherit;
+  font-size: 16px; /* keeps iOS from zooming on focus */
+  color: var(--ink);
+}
+
+/* ── Buttons — honest affordance. Shadow shows STATE only. ────────────────── */
+
+.btn {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 1px solid var(--hairline-strong);
+  background: var(--paper-raised);
+  color: var(--ink);
+  min-height: var(--tap);
+  padding: 0 18px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.12s ease,
+              opacity 0.12s ease;
+}
+.btn:hover:not(:disabled) { background: #f3eee5; }
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px rgba(43, 43, 43, 0.12); /* pressed state */
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fbf8f3;
+}
+.btn-primary:hover:not(:disabled) { background: #a87a58; }
+
+/* Locked — the safety gate. Visibly not pressable, calm not scary. */
+.btn-locked,
+.btn:disabled {
+  opacity: 0.45;
+  background: var(--paper);
+  color: var(--ink-faint);
+  border-color: var(--hairline);
+  box-shadow: none;
+}
+.btn-primary:disabled {
+  background: var(--paper);
+  color: var(--ink-faint);
+  border-color: var(--hairline);
+}
+
+.btn-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent-ink);
+  min-height: auto;
+  padding: 6px 4px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--hairline-strong);
+  font-weight: 500;
+}
+.btn-quiet:hover:not(:disabled) {
+  background: transparent;
+  text-decoration-color: var(--accent);
+}
+
+.btn-block { width: 100%; }
+.btn-sm { min-height: 38px; padding: 0 14px; font-size: 15px; }
+
+/* ── App header (thin, quiet) ─────────────────────────────────────────────── */
+
+.appbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--paper);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.appbar .back {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 22px;
+  line-height: 1;
+  padding: 6px;
+  margin: -6px;
+  border-radius: var(--radius-sm);
+}
+.appbar .back:hover { color: var(--ink); }
+.appbar-title { display: flex; flex-direction: column; min-width: 0; }
+.appbar-title .name {
+  font-weight: 600;
+  font-size: 17px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.appbar-title .sub {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wordmark {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.wordmark .ma { color: var(--accent-ink); font-weight: 400; }
+.tagline {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  margin-top: 1px;
+}
+
+/* ── Generic layout helpers ──────────────────────────────────────────────── */
+
+.scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.pad { padding: 18px; }
+.stack > * + * { margin-top: 14px; }
+
+.muted { color: var(--ink-soft); }
+.faint { color: var(--ink-faint); }
+.center { text-align: center; }
+
+.hint {
+  font-size: 13px;
+  color: var(--ink-faint);
+  line-height: 1.45;
+}
+
+/* A small status line (health / errors), never alarming. */
+.status {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  padding: 8px 18px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.status .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ink-faint);
+  flex: none;
+}
+.status .dot.ok { background: var(--sage); }
+.status .dot.down { background: var(--alarm); }
+
+.banner {
+  margin: 14px 18px 0;
+  padding: 11px 13px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  background: var(--paper-raised);
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+
+/* ── Partner picker ──────────────────────────────────────────────────────── */
+
+.section-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 4px 0 10px;
+}
+
+.partner-list { list-style: none; margin: 0; padding: 0; }
+.partner-row {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--hairline);
+  text-align: left;
+  padding: 15px 4px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: var(--ink);
+}
+.partner-list .partner-row:last-child { border-bottom: 1px solid var(--hairline); }
+.partner-row:hover { background: rgba(176, 132, 99, 0.05); }
+.partner-row:active { background: rgba(176, 132, 99, 0.1); }
+
+.avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600;
+  font-size: 16px;
+  flex: none;
+  /* a soft, hand-thrown asymmetry — wabi-sabi, not a perfect circle grid */
+  border-top-left-radius: 52% 48%;
+  border-bottom-right-radius: 52% 48%;
+}
+.partner-meta { min-width: 0; }
+.partner-meta .pname { font-weight: 600; font-size: 16px; }
+.partner-meta .pinfo { font-size: 12.5px; color: var(--ink-faint); margin-top: 1px; }
+
+.empty {
+  padding: 28px 8px;
+  color: var(--ink-faint);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+/* New-person form */
+.field { display: block; }
+.field-label {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+.input, .textarea {
+  width: 100%;
+  background: var(--paper-raised);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  padding: 11px 12px;
+  line-height: 1.45;
+  color: var(--ink);
+  outline: none;
+}
+.input:focus, .textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(176, 132, 99, 0.14);
+}
+.textarea { resize: vertical; min-height: 92px; }
+.input::placeholder, .textarea::placeholder { color: var(--ink-faint); }
+
+.divider-text {
+  display: flex; align-items: center; gap: 12px;
+  color: var(--ink-faint);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 22px 0 16px;
+}
+.divider-text::before, .divider-text::after {
+  content: ""; height: 1px; background: var(--hairline); flex: 1;
+}
+
+/* ── Thread view ─────────────────────────────────────────────────────────── */
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 16px 8px;
+}
+
+.row { display: flex; }
+.row.them { justify-content: flex-start; }
+.row.me { justify-content: flex-end; }
+
+.bubble {
+  max-width: 84%;
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  line-height: 1.46;
+  font-size: 15.5px;
+  position: relative;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+.bubble.them {
+  background: var(--paper-raised);
+  border: 1px solid var(--hairline);
+  border-bottom-left-radius: 5px; /* soft directional tail */
+  color: var(--ink);
+}
+.bubble.me {
+  background: var(--accent-wash);
+  border: 1px solid #e3d6c9;
+  border-bottom-right-radius: 5px;
+  color: var(--ink);
+}
+
+/* A "them" bubble that carries a grounded read invites a tap. */
+.bubble.readable { cursor: pointer; }
+.bubble.readable:hover { border-color: var(--hairline-strong); }
+
+/* The charged span — a soft tint + underline. The quiet marker. */
+.charged {
+  background: var(--accent-wash);
+  border-bottom: 1.5px solid var(--accent);
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
+/* The "tap to read" cue under a markable bubble. */
+.read-cue {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--accent-ink);
+}
+.read-cue .cue-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+}
+.read-cue.learning { color: var(--ink-faint); }
+.read-cue.learning .cue-dot { background: var(--ink-faint); }
+
+/* ── Read card (incoming subtext) ────────────────────────────────────────── */
+
+.card {
+  margin-top: 8px;
+  background: var(--paper-raised);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius);
+  padding: 15px 15px 13px;
+  font-size: 14.5px;
+}
+.card.them-card { align-self: flex-start; max-width: 92%; }
+
+.card-emotion {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-bottom: 10px;
+}
+.card-emotion .emo {
+  font-weight: 600;
+  font-size: 15.5px;
+  letter-spacing: 0.01em;
+  text-transform: lowercase;
+}
+.card-emotion .emo::first-letter { text-transform: uppercase; }
+
+/* Intensity — a small, gentle bar. Not a score, not a gauge. */
+.intensity {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+.intensity .meter {
+  width: 54px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hairline);
+  overflow: hidden;
+}
+.intensity .meter > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.read-line {
+  color: var(--ink);
+  line-height: 1.5;
+}
+.read-sub {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--hairline);
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.read-sub .k {
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 2px;
+}
+.read-sub + .read-sub { margin-top: 8px; }
+
+/* Cold-start humility framing. */
+.learning-note {
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+/* Extended-thinking reasoning, tucked behind a quiet toggle. */
+.reasoning {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--hairline);
+}
+.reasoning summary {
+  list-style: none;
+  cursor: pointer;
+  color: var(--accent-ink);
+  font-size: 12.5px;
+}
+.reasoning summary::-webkit-details-marker { display: none; }
+.reasoning .body {
+  margin-top: 7px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+/* Repair — the 4th-wall affordance, conversational. */
+.repair {
+  margin-top: 11px;
+  padding-top: 11px;
+  border-top: 1px solid var(--hairline);
+}
+.repair-open {
+  -webkit-appearance: none; appearance: none;
+  background: transparent; border: none;
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  padding: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.repair-open:hover { color: var(--accent-ink); }
+.repair-form { display: flex; gap: 8px; align-items: flex-start; }
+.repair-form .input { flex: 1; }
+
+/* ── Composer ────────────────────────────────────────────────────────────── */
+
+.composer {
+  border-top: 1px solid var(--hairline);
+  background: var(--paper);
+  padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+  position: sticky;
+  bottom: 0;
+}
+
+/* Segmented Them / Me toggle — a clean control. */
+.segmented {
+  display: flex;
+  background: var(--paper-raised);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  margin-bottom: 11px;
+  gap: 3px;
+}
+.segmented button {
+  flex: 1;
+  -webkit-appearance: none; appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  min-height: 36px;
+  border-radius: 7px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+.segmented button[aria-pressed="true"] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(43, 43, 43, 0.1); /* active state */
+}
+.segmented button .seg-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+
+.composer-row {
+  display: flex;
+  gap: 9px;
+  align-items: flex-end;
+}
+.composer .textarea {
+  min-height: var(--tap);
+  max-height: 132px;
+  resize: none;
+  padding: 11px 12px;
+}
+
+.composer-actions {
+  display: flex;
+  gap: 9px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.composer-actions .btn { flex: 1; min-width: 120px; }
+
+/* ── Mirror panel (outgoing check) ───────────────────────────────────────── */
+
+.mirror {
+  margin-top: 11px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+  padding: 14px;
+  font-size: 14px;
+}
+.mirror .mirror-line { color: var(--ink); line-height: 1.5; }
+.mirror.safe { border-color: #d6ddcd; }
+.mirror.safe .settled {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 9px;
+  font-size: 12.5px;
+  color: var(--sage);
+}
+.mirror.safe .settled .cue-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sage); }
+
+/* The ONE deliberate alarm — grounding, not a scary red error. A calm clay
+   wash with a soft pulse on entry so it draws the eye without panic. */
+.mirror.alarm {
+  border-color: var(--alarm);
+  background: var(--alarm-wash);
+  animation: settle 0.9s ease-out;
+}
+@keyframes settle {
+  0%   { box-shadow: 0 0 0 0 rgba(168, 92, 74, 0.0); }
+  35%  { box-shadow: 0 0 0 5px rgba(168, 92, 74, 0.16); }
+  100% { box-shadow: 0 0 0 0 rgba(168, 92, 74, 0.0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mirror.alarm { animation: none; }
+}
+.mirror.alarm .warn {
+  color: var(--alarm-ink);
+  font-weight: 500;
+  line-height: 1.5;
+}
+.mirror.alarm .reframe {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e1cabf;
+  color: var(--ink);
+  line-height: 1.5;
+}
+.mirror.alarm .reframe .k,
+.mirror .panel-k {
+  display: block;
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 3px;
+}
+
+/* Rewrite ("what did you mean?") */
+.rewrite {
+  margin-top: 11px;
+}
+.rewrite .field-label { color: var(--ink-soft); }
+.rewrite-row { display: flex; gap: 9px; align-items: flex-end; }
+.rewrite-row .textarea { min-height: var(--tap); resize: none; }
+
+/* ── Quiet "working" states (no spinners) ────────────────────────────────── */
+
+.working {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-faint);
+  font-size: 13.5px;
+  font-style: italic;
+}
+.working .breathe {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+  animation: breathe 1.5s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50%      { opacity: 1;    transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .working .breathe { animation: none; opacity: 0.7; }
+}
+
+.row-working {
+  align-self: flex-start;
+  margin: 2px 4px 4px;
+}
+
+.inline-error {
+  color: var(--alarm-ink);
+  font-size: 13px;
+  margin-top: 8px;
+  line-height: 1.45;
+}
+
+/* The very first load. */
+.boot {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 14px;
+  color: var(--ink-faint);
+  padding: 40px;
+  text-align: center;
+}
+.boot .wordmark { font-size: 26px; color: var(--ink); }

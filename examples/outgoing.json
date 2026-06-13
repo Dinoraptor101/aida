@@ -1,0 +1,47 @@
+[
+  {
+    "draft": "blood bath",
+    "expectSafe": false,
+    "note": "Canonical case. The user means 'the Black Friday rush', but read literally this is violence/self-harm language. The gate must catch the wound it could land as, not the intent the user could never feel."
+  },
+  {
+    "draft": "You are honestly the most selfish, pathetic excuse for a friend I have ever had. I don't know why I bothered.",
+    "expectSafe": false,
+    "note": "Direct attack on character and identity, plus contempt. A genuine wound — must lock."
+  },
+  {
+    "draft": "Nobody on this team respects you and they never will. You're a joke and everyone knows it.",
+    "expectSafe": false,
+    "note": "Contempt and a manufactured social threat aimed at the person's standing. Cruelty, not feedback."
+  },
+  {
+    "draft": "Of course you forgot. You always forget. You're useless and I'm done relying on you for anything.",
+    "expectSafe": false,
+    "note": "Globalising contempt ('always', 'useless') that attacks the person rather than the missed task."
+  },
+  {
+    "draft": "shut up, no one asked for your opinion and no one ever does",
+    "expectSafe": false,
+    "note": "Dismissive cruelty designed to demean. A wound even though it is short."
+  },
+  {
+    "draft": "I don't think this plan is going to work, and I'd rather we didn't go ahead with it.",
+    "expectSafe": true,
+    "note": "Plain disagreement. Directness is not a wound — must stay quiet."
+  },
+  {
+    "draft": "Hey, the deadline slipped and we lost the client. I wanted you to hear it from me directly.",
+    "expectSafe": true,
+    "note": "Bad news delivered honestly and without blame. Hard to hear is not the same as wounding."
+  },
+  {
+    "draft": "No, I can't make it tonight. I need the evening to myself.",
+    "expectSafe": true,
+    "note": "A blunt boundary. Saying no is allowed and should not trip the gate."
+  },
+  {
+    "draft": "That section is wrong — the numbers don't add up and the conclusion doesn't follow. Please redo it.",
+    "expectSafe": true,
+    "note": "Sharp, critical feedback on the work, not the worker. Bluntness stays safe."
+  }
+]

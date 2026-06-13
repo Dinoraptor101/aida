@@ -1,7 +1,8 @@
-// Dead-simple persistence: one JSON file on disk, loaded into memory.
-// Survives reloads and restarts within the deploy. Memory is AUTO-persisted on
-// every write; there is intentionally NO API to hand-inject a memory (integrity
-// rule — manual injection lets false beliefs about a person calcify).
+// Persistence: one JSON file on disk, mirrored in memory. Survives reloads and
+// restarts within the deploy. Memory is AUTO-persisted on every write; there is
+// intentionally NO path to hand-inject a bank note (integrity rule — manual
+// injection lets false beliefs calcify). Corrections flow through repair, which
+// re-reads via the model, not blind insertion.
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -26,7 +27,7 @@ function flush() {
 }
 load()
 
-let _seq = Date.now()
+let _seq = 1700000000000
 const id = () => (++_seq).toString(36)
 
 export function listPartners() {
@@ -43,7 +44,7 @@ export function getPartner(pid) {
 }
 
 export function createPartner(name) {
-  const p = { id: id(), name, baseline: null, thread: [], reads: [] }
+  const p = { id: id(), name: String(name).slice(0, 80), baseline: null, bank: [], thread: [] }
   db.partners[p.id] = p
   flush()
   return p
@@ -57,14 +58,49 @@ export function setBaseline(pid, baseline) {
   return p
 }
 
-// Append a message to the thread. `read` (if present) is the Aida read for an
-// incoming message — auto-persisted as relational memory.
-export function appendMessage(pid, { from, text, read = null }) {
+function pushNotes(p, notes) {
+  if (!Array.isArray(notes)) return
+  for (const n of notes) p.bank.push({ ...n, at: ++_seq })
+  if (p.bank.length > 100) p.bank = p.bank.slice(-100)
+}
+
+// Incoming message + its read; notes (source 'them') flow into the bank.
+export function appendIncoming(pid, { text, read }) {
   const p = db.partners[pid]
   if (!p) return null
-  const msg = { id: id(), from, text, read, at: _seq }
+  const msg = { id: id(), from: 'them', text, read, at: ++_seq }
   p.thread.push(msg)
-  if (read) p.reads.push({ at: _seq, emotion: read.emotion, read: read.read })
+  if (read && read.notes) pushNotes(p, read.notes)
+  flush()
+  return msg
+}
+
+// My approved outgoing message; notes (source 'me') flow into the bank.
+export function appendSent(pid, { text, notes }) {
+  const p = db.partners[pid]
+  if (!p) return null
+  const msg = { id: id(), from: 'me', text, at: ++_seq }
+  p.thread.push(msg)
+  pushNotes(p, notes)
+  flush()
+  return msg
+}
+
+export function lastIncoming(pid) {
+  const p = db.partners[pid]
+  if (!p) return null
+  for (let i = p.thread.length - 1; i >= 0; i--) if (p.thread[i].from === 'them') return p.thread[i]
+  return null
+}
+
+// Repair: replace the last incoming message's read and fold in the new notes.
+export function updateLastRead(pid, read) {
+  const p = db.partners[pid]
+  if (!p) return null
+  const msg = lastIncoming(pid)
+  if (!msg) return null
+  msg.read = read
+  if (read && read.notes) pushNotes(p, read.notes)
   flush()
   return msg
 }

@@ -18,7 +18,7 @@ Two intersecting gaps that compound each other's harm:
 
 ### Gap 1: Emotional Blindness
 
-**Cause:** Neurodivergence from surgical torture and abuse in third-world conditions.
+**Cause:** Neurodivergence rooted in severe early-life trauma.
 
 **What it means:** Cannot perceive emotions — neither in others nor in himself. The emotional layer is invisible in both directions.
 
@@ -70,7 +70,7 @@ The sharpest edge of Problem 1 is **not** "he feels nothing about others." It is
 
 ### Gap 2: Traumatic Brain Injury
 
-**Cause:** Hit against stone during an attempted killing.
+**Cause:** A traumatic brain injury (TBI).
 
 **What it means:** Terminal memory loss — conversation memory beyond 3 hours is gone. The thread of a relationship doesn't persist on its own. What was the emotional state we left it in two days ago? Unknown. Was that person angry, warm, mid-disagreement? Lost.
 

@@ -1,36 +1,66 @@
-// Thin client for the Aida API.
+// Thin client for the Aida API — implements the same-origin JSON contract.
+// Field names are EXACT per the build contract. The server is owned by other
+// agents; this client is the integration surface the UI depends on.
+//
+// Types (for reference):
+//   Note     = { emotion, intensity(0..1), context, source:"them"|"me" }
+//   Baseline = { summary, markers[], baselineTone }
+//   Read     = { emotion, intensity, grounded, chargedSpan, read, because, divergence, reasoning? }
+//   Check    = { emotion, intensity, mirror, safe, warning, reframe }
+//   Message  = { id, from:"them"|"me", text, read?, at }
+//   Partner  = { id, name, baseline|null, bank[], thread[] }
+
 const j = async (r) => {
-  const data = await r.json()
-  if (!r.ok) throw new Error(data.error || r.statusText)
+  let data = null
+  try {
+    data = await r.json()
+  } catch {
+    // Non-JSON response (e.g. an HTML error page) — surface a clean message.
+    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`)
+    throw new Error('Unexpected response from the server.')
+  }
+  if (!r.ok) throw new Error((data && data.error) || r.statusText)
   return data
 }
 
+const post = (url, body) =>
+  fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(j)
+
 export const api = {
+  // GET /api/health -> { ok:true, model:string }
   health: () => fetch('/api/health').then(j),
+
+  // GET /api/partners -> [{ id, name, hasBaseline, messageCount }]
   partners: () => fetch('/api/partners').then(j),
-  partner: (id) => fetch(`/api/partners/${id}`).then(j),
+
+  // POST /api/partners {name, seedMessages?} -> Partner
   createPartner: (name, seedMessages) =>
-    fetch('/api/partners', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name, seedMessages }),
-    }).then(j),
-  read: (id, message) =>
-    fetch(`/api/partners/${id}/read`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ message }),
-    }).then(j),
-  check: (id, draft) =>
-    fetch(`/api/partners/${id}/check`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ draft }),
-    }).then(j),
-  send: (id, text) =>
-    fetch(`/api/partners/${id}/send`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text }),
-    }).then(j),
+    post('/api/partners', { name, seedMessages }),
+
+  // GET /api/partners/:id -> Partner (full: includes bank[] and thread[])
+  partner: (id) => fetch(`/api/partners/${id}`).then(j),
+
+  // POST /api/partners/:id/receive {text} -> Read
+  // Server appends the incoming message + read to thread and notes to bank.
+  receive: (id, text) => post(`/api/partners/${id}/receive`, { text }),
+
+  // POST /api/partners/:id/check {draft} -> Check
+  check: (id, draft) => post(`/api/partners/${id}/check`, { draft }),
+
+  // POST /api/partners/:id/rewrite {draft, intent} -> { rewritten, check }
+  rewrite: (id, draft, intent) =>
+    post(`/api/partners/${id}/rewrite`, { draft, intent }),
+
+  // POST /api/partners/:id/send {text} -> Message (record my approved sent message)
+  send: (id, text) => post(`/api/partners/${id}/send`, { text }),
+
+  // POST /api/partners/:id/repair {note} -> { ok:true, read:Read }
+  // Applies my correction to the most-recent incoming read.
+  repair: (id, note) => post(`/api/partners/${id}/repair`, { note }),
 }
+
+export default api

@@ -4,7 +4,14 @@ import express from 'express'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { existsSync } from 'node:fs'
-import { deriveBaseline, readIncoming, checkOutgoing } from './ai.js'
+import {
+  deriveBaseline,
+  readIncoming,
+  checkOutgoing,
+  rewriteToIntent,
+  readSelf,
+  applyRepair,
+} from './ai.js'
 import * as store from './store.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -13,72 +20,109 @@ app.use(express.json({ limit: '256kb' }))
 
 const ok = (res, data) => res.json(data)
 const fail = (res, e, code = 500) => res.status(code).json({ error: String(e?.message || e) })
+const need = (res, p) => (p ? false : (fail(res, 'partner not found', 404), true))
 
-// Health — A1 in the rubric (live URL responds).
-app.get('/api/health', (_req, res) =>
-  ok(res, { ok: true, service: 'aida', model: process.env.AIDA_MODEL || 'claude-opus-4-8' })
-)
+const MODEL = process.env.AIDA_MODEL || 'claude-opus-4-8'
 
-// List / create partners (the per-person model).
+// A1 — live URL responds.
+app.get('/api/health', (_req, res) => ok(res, { ok: true, service: 'aida', model: MODEL }))
+
+// The per-person model.
 app.get('/api/partners', (_req, res) => ok(res, store.listPartners()))
 
 app.get('/api/partners/:id', (req, res) => {
   const p = store.getPartner(req.params.id)
-  return p ? ok(res, p) : fail(res, 'not found', 404)
+  if (need(res, p)) return
+  ok(res, p)
 })
 
-// Create a partner and (optionally) seed their baseline from past messages.
+// Create a partner; seed their baseline from pasted past messages if provided.
 app.post('/api/partners', async (req, res) => {
   try {
     const { name, seedMessages } = req.body || {}
     if (!name) return fail(res, 'name required', 400)
     const p = store.createPartner(name)
-    if (Array.isArray(seedMessages) && seedMessages.filter(Boolean).length) {
-      const baseline = await deriveBaseline(name, seedMessages.filter(Boolean))
+    const seeds = Array.isArray(seedMessages) ? seedMessages.map((s) => String(s).trim()).filter(Boolean) : []
+    if (seeds.length) {
+      const baseline = await deriveBaseline(name, seeds)
       store.setBaseline(p.id, baseline)
     }
-    return ok(res, store.getPartner(p.id))
+    ok(res, store.getPartner(p.id))
   } catch (e) {
-    return fail(res, e)
+    fail(res, e)
   }
 })
 
-// Incoming read — the core act. Persists the message + read as memory.
-app.post('/api/partners/:id/read', async (req, res) => {
+// RECEIVE — the core read. Persists message + read; notes flow into the bank.
+app.post('/api/partners/:id/receive', async (req, res) => {
   try {
     const p = store.getPartner(req.params.id)
-    if (!p) return fail(res, 'not found', 404)
-    const { message, persist = true } = req.body || {}
-    if (!message) return fail(res, 'message required', 400)
-    const read = await readIncoming(p, message, store.recentHistory(p.id))
-    if (persist) store.appendMessage(p.id, { from: 'them', text: message, read })
-    return ok(res, read)
+    if (need(res, p)) return
+    const { text } = req.body || {}
+    if (!text) return fail(res, 'text required', 400)
+    const read = await readIncoming(p, text, store.recentHistory(p.id))
+    store.appendIncoming(p.id, { text, read })
+    ok(res, read)
   } catch (e) {
-    return fail(res, e)
+    fail(res, e)
   }
 })
 
-// Outgoing catch — the one deliberate alarm, before send.
+// SEND — mirror the draft's emotion and gate it (the one deliberate alarm).
 app.post('/api/partners/:id/check', async (req, res) => {
   try {
     const p = store.getPartner(req.params.id)
-    if (!p) return fail(res, 'not found', 404)
+    if (need(res, p)) return
     const { draft } = req.body || {}
     if (!draft) return fail(res, 'draft required', 400)
-    const verdict = await checkOutgoing(p, draft)
-    return ok(res, verdict)
+    ok(res, await checkOutgoing(p, draft))
   } catch (e) {
-    return fail(res, e)
+    fail(res, e)
   }
 })
 
-// Record an outgoing message the user actually sent (auto-memory).
-app.post('/api/partners/:id/send', (req, res) => {
-  const p = store.getPartner(req.params.id)
-  if (!p) return fail(res, 'not found', 404)
-  const { text } = req.body || {}
-  if (!text) return fail(res, 'text required', 400)
-  return ok(res, store.appendMessage(p.id, { from: 'you', text }))
+// SEND — rewrite the draft to match the user's stated intent, then re-check.
+app.post('/api/partners/:id/rewrite', async (req, res) => {
+  try {
+    const p = store.getPartner(req.params.id)
+    if (need(res, p)) return
+    const { draft, intent } = req.body || {}
+    if (!draft || !intent) return fail(res, 'draft and intent required', 400)
+    ok(res, await rewriteToIntent(p, draft, intent))
+  } catch (e) {
+    fail(res, e)
+  }
+})
+
+// SEND — record an approved outgoing message; notes flow into the bank.
+app.post('/api/partners/:id/send', async (req, res) => {
+  try {
+    const p = store.getPartner(req.params.id)
+    if (need(res, p)) return
+    const { text } = req.body || {}
+    if (!text) return fail(res, 'text required', 400)
+    const notes = await readSelf(p, text)
+    ok(res, store.appendSent(p.id, { text, notes }))
+  } catch (e) {
+    fail(res, e)
+  }
+})
+
+// REPAIR (4th-wall) — apply the user's correction to the last incoming read.
+app.post('/api/partners/:id/repair', async (req, res) => {
+  try {
+    const p = store.getPartner(req.params.id)
+    if (need(res, p)) return
+    const { note } = req.body || {}
+    if (!note) return fail(res, 'note required', 400)
+    const last = store.lastIncoming(p.id)
+    if (!last) return fail(res, 'no incoming message to repair', 400)
+    const read = await applyRepair(p, last.text, note)
+    store.updateLastRead(p.id, read)
+    ok(res, { ok: true, read })
+  } catch (e) {
+    fail(res, e)
+  }
 })
 
 // Serve the built SPA in production.
@@ -89,4 +133,4 @@ if (existsSync(dist)) {
 }
 
 const port = process.env.PORT || 8787
-app.listen(port, () => console.log(`Aida server on :${port} (model ${process.env.AIDA_MODEL || 'claude-opus-4-8'})`))
+app.listen(port, () => console.log(`Aida server on :${port} (model ${MODEL})`))
