@@ -578,6 +578,23 @@ input, textarea {
   padding: 11px 12px;
 }
 
+/* The "Aida is checking…" status sits INSIDE the input box (overlaid, bottom-left)
+   so it never pushes the layout up or down. */
+.input-wrap { position: relative; }
+.input-status {
+  position: absolute;
+  left: 11px;
+  bottom: 9px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 7px;
+  background: var(--paper-raised);
+  box-shadow: 0 0 7px 7px var(--paper-raised);
+  font-size: 12px;
+  pointer-events: none;
+}
+
 .composer-actions {
   display: flex;
   gap: 9px;

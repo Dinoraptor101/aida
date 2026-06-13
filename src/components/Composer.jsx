@@ -154,19 +154,21 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
 
       {mode === 'them' ? (
         <form onSubmit={submitReceive}>
-          <textarea
-            className="textarea"
-            value={text}
-            onChange={(e) => onText(e.target.value)}
-            placeholder="Paste what they sent you…"
-            rows={2}
-            disabled={busy === 'reading'}
-          />
-          {busy === 'reading' && (
-            <div style={{ marginTop: 10 }}>
-              <Working label="Aida is reading this for you…" />
-            </div>
-          )}
+          <div className="input-wrap">
+            <textarea
+              className="textarea"
+              value={text}
+              onChange={(e) => onText(e.target.value)}
+              placeholder="Paste what they sent you…"
+              rows={2}
+              disabled={busy === 'reading'}
+            />
+            {busy === 'reading' && (
+              <div className="input-status">
+                <Working label="Aida is reading this for you…" />
+              </div>
+            )}
+          </div>
           {error && <div className="inline-error">{error}</div>}
           <div className="composer-actions">
             <button className="btn btn-primary" type="submit" disabled={!text.trim() || busy === 'reading'}>
@@ -176,14 +178,29 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
         </form>
       ) : (
         <div>
-          <textarea
-            className="textarea"
-            value={text}
-            onChange={(e) => onText(e.target.value)}
-            placeholder="Write what you want to send…"
-            rows={2}
-            disabled={busy === 'sending'}
-          />
+          <div className="input-wrap">
+            <textarea
+              className="textarea"
+              value={text}
+              onChange={(e) => onText(e.target.value)}
+              placeholder="Write what you want to send…"
+              rows={2}
+              disabled={busy === 'sending'}
+            />
+            {(busy === 'checking' || busy === 'rewriting' || busy === 'sending') && (
+              <div className="input-status">
+                <Working
+                  label={
+                    busy === 'checking'
+                      ? 'Aida is checking how this lands…'
+                      : busy === 'rewriting'
+                      ? 'Aida is rewriting in your voice…'
+                      : 'Sending…'
+                  }
+                />
+              </div>
+            )}
+          </div>
 
           {/* Mirror panel — kept on screen once it exists; dims when stale so the
               layout never collapses mid-edit. */}
@@ -244,21 +261,6 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
                 </button>
               </div>
             </form>
-          )}
-
-          {/* Working cue for me-mode actions. */}
-          {(busy === 'checking' || busy === 'rewriting' || busy === 'sending') && (
-            <div style={{ marginTop: 10 }}>
-              <Working
-                label={
-                  busy === 'checking'
-                    ? 'Aida is checking how this lands…'
-                    : busy === 'rewriting'
-                    ? 'Aida is rewriting in your voice…'
-                    : 'Sending…'
-                }
-              />
-            </div>
           )}
 
           {error && <div className="inline-error">{error}</div>}

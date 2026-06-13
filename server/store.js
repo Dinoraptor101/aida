@@ -13,12 +13,21 @@ const DATA_DIR = join(__dirname, '..', 'data')
 const FILE = join(DATA_DIR, 'store.json')
 
 let db = { partners: {} }
+let _seq = 1700000000000
 
 function load() {
   try {
     if (existsSync(FILE)) db = JSON.parse(readFileSync(FILE, 'utf8'))
   } catch {
     db = { partners: {} }
+  }
+  // Resume the id counter past anything already stored, so a restart never
+  // reuses an id and clobbers an existing partner or message.
+  for (const p of Object.values(db.partners)) {
+    const n = parseInt(p.id, 36)
+    if (Number.isFinite(n) && n > _seq) _seq = n
+    for (const m of p.thread || []) if ((m.at || 0) > _seq) _seq = m.at
+    for (const b of p.bank || []) if ((b.at || 0) > _seq) _seq = b.at
   }
 }
 function flush() {
@@ -27,7 +36,6 @@ function flush() {
 }
 load()
 
-let _seq = 1700000000000
 const id = () => (++_seq).toString(36)
 
 export function listPartners() {
