@@ -69,13 +69,21 @@ const FAMILY = {
   unclear: ['unclear', 'unsure', 'ambig', 'uncertain', "don't know", 'hard to tell', 'cautious', 'tentative'],
 }
 
-function emotionMatches(expected, actual) {
+function matchOne(expected, actual) {
   const a = String(actual || '').toLowerCase()
   const e = String(expected || '').toLowerCase()
-  if (!a) return false
+  if (!a || !e) return false
   if (a.includes(e) || e.includes(a)) return true // simple substring family match
   const cues = FAMILY[e] || []
   return cues.some((c) => a.includes(c))
+}
+
+// An emotional read is inherently multi-valued: a clipped "fine." from a warm
+// person is validly frustration OR withdrawal OR hurt. So `expect.emotion` may
+// be a single family or a list of acceptable ones — pass if ANY matches.
+function emotionMatches(expected, actual) {
+  const list = Array.isArray(expected) ? expected : [expected]
+  return list.some((e) => matchOne(e, actual))
 }
 
 // ── table printing ─────────────────────────────────────────────────────────

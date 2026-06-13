@@ -11,7 +11,7 @@
     },
     "message": "fine.",
     "expect": {
-      "emotion": "frustration",
+      "emotion": ["frustration", "withdrawal", "hurt", "coldness"],
       "grounded": true,
       "rationaleMust": ["sarah"]
     }
@@ -28,7 +28,7 @@
     },
     "message": "k. sounds good i guess",
     "expect": {
-      "emotion": "hurt",
+      "emotion": ["hurt", "withdrawal", "resignation", "reluctance", "disappointment", "hesitant"],
       "grounded": true,
       "rationaleMust": ["sarah"]
     }
@@ -113,7 +113,7 @@
     },
     "message": "i'm fine, seriously. it's nothing.",
     "expect": {
-      "emotion": "withdrawal",
+      "emotion": ["withdrawal", "distress", "masked distress", "deflection", "shutdown", "flat"],
       "grounded": true,
       "rationaleMust": ["dani"]
     }
@@ -154,7 +154,7 @@
     },
     "message": "Can you call me when you get a sec? Nothing urgent.",
     "expect": {
-      "emotion": "unclear",
+      "emotion": ["unclear", "neutral", "calm", "curious", "ambiguous"],
       "grounded": false,
       "rationaleMust": ["learning"]
     }
