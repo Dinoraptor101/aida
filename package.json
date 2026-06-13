@@ -8,7 +8,8 @@
     "dev": "concurrently -k -n vite,api -c cyan,magenta \"vite\" \"node server/index.js\"",
     "build": "vite build",
     "start": "node server/index.js",
-    "grade": "node scripts/grade.mjs"
+    "grade": "node scripts/grade.mjs",
+    "test": "node --test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

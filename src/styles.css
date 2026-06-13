@@ -582,6 +582,8 @@ input, textarea {
   font-size: 14px;
 }
 .mirror .mirror-line { color: var(--ink); line-height: 1.5; }
+.mirror.stale { opacity: 0.5; }
+.mirror .stale-note { margin-top: 9px; color: var(--ink-faint); }
 .mirror.safe { border-color: #d6ddcd; }
 .mirror.safe .settled {
   display: inline-flex; align-items: center; gap: 6px;

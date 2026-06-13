@@ -23,7 +23,7 @@ function client() {
 }
 
 // Pull the first balanced JSON object out of a text blob.
-function extractJson(text) {
+export function extractJson(text) {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/)
   const candidate = fenced ? fenced[1] : text
   const start = candidate.indexOf('{')
