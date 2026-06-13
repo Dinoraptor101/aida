@@ -93,6 +93,15 @@ export async function deriveBaseline(name, messages) {
   }
 }
 
+// The 10 emotion families (Sofroniew et al., 2026). Opus tags each read with one
+// so the UI always has a colour; the client keyword classifier is only a fallback.
+const FAMILY_LIST = 'joy, sadness, anger, calm, fear, curiosity, disgust, surprise, love, determination'
+const FAMILY_SET = new Set(FAMILY_LIST.split(', '))
+function cleanFamily(f) {
+  const v = String(f || '').toLowerCase().trim()
+  return FAMILY_SET.has(v) ? v : null
+}
+
 // ── RECEIVE: read an incoming message, grounded in the person ──────────────
 export async function readIncoming(partner, text, history = []) {
   const hasBaseline = !!(partner?.baseline?.summary)
@@ -119,8 +128,9 @@ export async function readIncoming(partner, text, history = []) {
     `- "divergence" = a light theory-of-mind line: how THEY likely see it vs how the user might read it ("they likely mean X, though it may read as Y").\n` +
     `- COLD START → grounded:false; say you're still learning how they write; cautious generic read only.\n` +
     `- Prefer honest uncertainty over a confident wrong read.\n` +
-    `- "notes" = 1-3 emotional notes to store (the felt emotions in their message).\n\n` +
-    `Return ONLY JSON: {"emotion":"<1-2 words>","intensity":<0..1>,"grounded":<bool>,` +
+    `- "notes" = 1-3 emotional notes to store (the felt emotions in their message).\n` +
+    `- "family" = classify the read into EXACTLY ONE of these 10: ${FAMILY_LIST}.\n\n` +
+    `Return ONLY JSON: {"emotion":"<1-2 words>","family":"<one of: ${FAMILY_LIST}>","intensity":<0..1>,"grounded":<bool>,` +
     `"chargedSpan":"<exact substring carrying most signal, or "">",` +
     `"read":"<one tentative relational sentence>","because":"<short: what deviates from baseline, or why unsure>",` +
     `"divergence":"<the light ToM line>",` +
@@ -129,6 +139,7 @@ export async function readIncoming(partner, text, history = []) {
   const { json, thinking } = await callJson({ system, user, maxTokens: 1000, think: hasBaseline })
   return {
     emotion: String(json.emotion || 'unclear').slice(0, 24),
+    family: cleanFamily(json.family),
     intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
     grounded: hasBaseline ? !!json.grounded : false,
     chargedSpan: String(json.chargedSpan || '').slice(0, 200),
@@ -157,7 +168,8 @@ export async function checkOutgoing(partner, draft) {
     `reads as violence even if they meant a busy sale day.\n` +
     `   When unsafe, give a gentle warning and a reframe that keeps their INTENT without the wound or the ` +
     `dangerous misread. Bluntness, disagreement, or bad news is NOT unsafe — those stay safe:true.\n\n` +
-    `Tentative, never scolding. Return ONLY JSON: {"emotion":"<1-2 words>",` +
+    `Tentative, never scolding. Classify "family" as EXACTLY ONE of: ${FAMILY_LIST}. ` +
+    `Return ONLY JSON: {"emotion":"<1-2 words>","family":"<one of the 10>",` +
     `"intensity":<0..1>,"mirror":"<one sentence: the emotion these words carry>",` +
     `"safe":<bool>,"warning":"<if unsafe: one gentle sentence, else "">",` +
     `"reframe":"<if unsafe: a rewrite preserving intent without the wound, else "">"}`
@@ -165,6 +177,7 @@ export async function checkOutgoing(partner, draft) {
   const { json } = await callJson({ system, user, maxTokens: 700 })
   return {
     emotion: String(json.emotion || '').slice(0, 24),
+    family: cleanFamily(json.family),
     intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
     mirror: String(json.mirror || '').slice(0, 400),
     safe: !!json.safe,
@@ -180,7 +193,8 @@ export async function rewriteToIntent(partner, draft, intent) {
     `Rewrite the draft so it conveys their stated intent cleanly and without wounding ` +
     `the recipient — keep it in the user's own voice, concise. Then mirror the new ` +
     `emotion and gate it.\n\n` +
-    `Return ONLY JSON: {"rewritten":"<the rewritten message>","emotion":"<1-2 words>",` +
+    `Classify "family" as EXACTLY ONE of: ${FAMILY_LIST}. ` +
+    `Return ONLY JSON: {"rewritten":"<the rewritten message>","emotion":"<1-2 words>","family":"<one of the 10>",` +
     `"intensity":<0..1>,"mirror":"<the emotion it now carries>","safe":<bool>,` +
     `"warning":"<if still unsafe, else "">","reframe":"<if still unsafe, else "">"}`
   const user = `Draft: "${draft}"\n\nWhat the user actually means: "${intent}"\n\nRewrite to match the intent, then check.`
@@ -189,6 +203,7 @@ export async function rewriteToIntent(partner, draft, intent) {
     rewritten: String(json.rewritten || draft).slice(0, 600),
     check: {
       emotion: String(json.emotion || '').slice(0, 24),
+      family: cleanFamily(json.family),
       intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
       mirror: String(json.mirror || '').slice(0, 400),
       safe: !!json.safe,
@@ -219,7 +234,8 @@ export async function applyRepair(partner, lastMessageText, note) {
     `${ACCESS}\n\nThe user is CORRECTING Aida's read of a message they received — they ` +
     `know this person better. Treat the correction as authoritative and produce a ` +
     `revised read that honors it, plus updated emotional notes.\n\n` +
-    `Return ONLY JSON: {"emotion":"<1-2 words>","intensity":<0..1>,"grounded":true,` +
+    `Classify "family" as EXACTLY ONE of: ${FAMILY_LIST}. ` +
+    `Return ONLY JSON: {"emotion":"<1-2 words>","family":"<one of the 10>","intensity":<0..1>,"grounded":true,` +
     `"chargedSpan":"","read":"<revised tentative read>","because":"<now reflecting the user's correction>",` +
     `"divergence":"<updated light ToM line>","notes":[{"emotion":"<word>","intensity":<0..1>,"context":"<why>"}]}`
   const user =
@@ -228,6 +244,7 @@ export async function applyRepair(partner, lastMessageText, note) {
   const { json } = await callJson({ system, user, maxTokens: 700 })
   return {
     emotion: String(json.emotion || '').slice(0, 24),
+    family: cleanFamily(json.family),
     intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
     grounded: true,
     chargedSpan: String(json.chargedSpan || '').slice(0, 200),

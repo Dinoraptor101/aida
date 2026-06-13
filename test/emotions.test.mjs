@@ -16,6 +16,14 @@ test('classify maps nuanced labels onto the right family', () => {
   assert.equal(classify('curious'), 'curiosity')
 })
 
+test('classifier covers previously-missed labels (fallback hardening)', () => {
+  assert.equal(classify('alarm'), 'fear')
+  assert.equal(classify('alarm, intensity'), 'fear')
+  assert.equal(classify('uncertain'), 'fear')
+  assert.equal(classify('tense'), 'fear')
+  assert.equal(classify('dismissive'), 'disgust')
+})
+
 test('classify returns null for unknown or empty labels', () => {
   assert.equal(classify('zxqwv'), null)
   assert.equal(classify(''), null)
