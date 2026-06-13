@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Intensity, Working } from './Bits.jsx'
+import { emotionStyle } from '../emotions.js'
 
 // The calm "read card" for an incoming message. Tentative + relational by
 // design. When grounded===false (cold start) it shows humble framing and makes
@@ -10,6 +11,7 @@ export default function ReadCard({ read, onRepair, repairing }) {
 
   if (!read) return null
   const grounded = read.grounded === true
+  const emo = emotionStyle(read.emotion, read.family)
 
   const submitRepair = (e) => {
     e.preventDefault()
@@ -21,7 +23,7 @@ export default function ReadCard({ read, onRepair, repairing }) {
   }
 
   return (
-    <div className="card them-card">
+    <div className="card them-card" style={emo.color ? { '--emo': emo.color } : undefined}>
       <div className="card-emotion">
         <span className="emo">{read.emotion || 'unclear'}</span>
         <Intensity value={read.intensity} />

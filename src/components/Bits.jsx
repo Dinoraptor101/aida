@@ -19,12 +19,14 @@ export function MarkedText({ text, span }) {
 export function Intensity({ value }) {
   const v = Math.max(0, Math.min(1, Number(value) || 0))
   const pct = Math.round(v * 100)
+  // A felt weight in words, never a clinical score (no "0.82").
+  const word = v < 0.3 ? 'faint' : v < 0.55 ? 'mild' : v < 0.75 ? 'moderate' : v < 0.9 ? 'strong' : 'intense'
   return (
-    <span className="intensity" aria-label={`intensity ${pct} of 100`}>
+    <span className="intensity" aria-label={`intensity: ${word}`}>
       <span className="meter">
         <span style={{ width: `${pct}%` }} />
       </span>
-      {pct}
+      <span className="intensity-word">{word}</span>
     </span>
   )
 }

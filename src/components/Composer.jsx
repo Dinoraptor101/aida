@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Intensity, Working } from './Bits.jsx'
+import { emotionStyle } from '../emotions.js'
 
 // The composer with a Them / Me segmented toggle.
 //  - THEM (receive): submit a message you RECEIVED → parent calls /receive.
@@ -113,6 +114,7 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
 
   const safe = check && check.safe === true
   const unsafe = check && check.safe === false
+  const emo = check ? emotionStyle(check.emotion, check.family) : null
 
   return (
     <div className="composer">
@@ -174,7 +176,7 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
 
           {/* Mirror panel — what the draft carries; the gate's verdict. */}
           {check && (
-            <div className={`mirror ${safe ? 'safe' : 'alarm'}`} role={unsafe ? 'alert' : undefined}>
+            <div className={`mirror ${safe ? 'safe' : 'alarm'}`} role={unsafe ? 'alert' : undefined} style={emo && emo.color ? { '--emo': emo.color } : undefined}>
               <div className="card-emotion" style={{ marginBottom: 8 }}>
                 <span className="emo">{check.emotion || '—'}</span>
                 <Intensity value={check.intensity} />

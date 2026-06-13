@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { MarkedText, Working } from './Bits.jsx'
+import { emotionStyle } from '../emotions.js'
 import ReadCard from './ReadCard.jsx'
 import Composer from './Composer.jsx'
 
@@ -51,6 +52,7 @@ export default function Thread({
             const them = isThem(m.from)
             const read = m.read
             const grounded = read && read.grounded === true
+            const emo = read ? emotionStyle(read.emotion, read.family) : null
             const markable = them && !!read
             const isOpen = openId === m.id
 
@@ -59,6 +61,7 @@ export default function Thread({
                 <div className={`row ${them ? 'them' : 'me'}`}>
                   <div
                     className={`bubble ${them ? 'them' : 'me'} ${markable ? 'readable' : ''}`}
+                    style={emo && emo.color ? { '--emo': emo.color } : undefined}
                     onClick={markable ? () => setOpenId(isOpen ? null : m.id) : undefined}
                     role={markable ? 'button' : undefined}
                     tabIndex={markable ? 0 : undefined}
