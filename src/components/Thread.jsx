@@ -83,10 +83,10 @@ export default function Thread({
                       m.text
                     )}
 
-                    {markable && !isOpen && (
-                      <span className={`read-cue ${grounded ? '' : 'learning'}`}>
+                    {markable && !isOpen && !grounded && (
+                      <span className="read-cue learning">
                         <span className="cue-dot" aria-hidden="true" />
-                        {grounded ? 'tap to read the subtext' : 'still learning how they write'}
+                        still learning how they write
                       </span>
                     )}
                   </div>
