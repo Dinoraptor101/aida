@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Intensity, Working } from './Bits.jsx'
 import { emotionStyle } from '../emotions.js'
+import { notify } from '../toast.js'
 
 // The composer with a Them / Me segmented toggle.
 //  - THEM (receive): submit a message you RECEIVED → parent calls /receive.
@@ -17,7 +18,6 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
   const [mode, setMode] = useState('them') // 'them' | 'me'
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false) // 'reading' | 'checking' | 'rewriting' | 'sending' | false
-  const [error, setError] = useState('')
 
   // ME-mode draft state.
   const [check, setCheck] = useState(null) // latest Check for the current draft
@@ -29,7 +29,6 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
     if (m === mode) return
     setMode(m)
     setText('')
-    setError('')
     resetDraft()
   }
 
@@ -45,7 +44,6 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
   const onText = (v) => {
     setText(v)
     if (check) setStale(true)
-    if (error) setError('')
   }
 
   // THEM — receive an incoming message.
@@ -54,12 +52,11 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
     const t = text.trim()
     if (!t || busy) return
     setBusy('reading')
-    setError('')
     try {
       await onReceive(t)
       setText('')
     } catch (err) {
-      setError(err.message || 'Aida couldn’t read that just now.')
+      notify('Aida couldn’t reach the reader just now — please try again.', { type: 'error' })
     } finally {
       setBusy(false)
     }
@@ -70,14 +67,13 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
     const t = text.trim()
     if (!t || busy) return
     setBusy('checking')
-    setError('')
     try {
       const c = await onCheck(t)
       setCheck(c)
       setStale(false)
       if (c && c.safe === false) setShowIntent(false)
     } catch (err) {
-      setError(err.message || 'Aida couldn’t check that just now.')
+      notify('Aida couldn’t check that just now — please try again.', { type: 'error' })
     } finally {
       setBusy(false)
     }
@@ -90,7 +86,6 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
     const want = intent.trim()
     if (!t || !want || busy) return
     setBusy('rewriting')
-    setError('')
     try {
       const { rewritten, check: c } = await onRewrite(t, want)
       if (rewritten) setText(rewritten)
@@ -99,7 +94,7 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
       setIntent('')
       if (c && c.safe === true) setShowIntent(false)
     } catch (err) {
-      setError(err.message || 'Aida couldn’t rewrite that just now.')
+      notify('Aida couldn’t rewrite that just now — please try again.', { type: 'error' })
     } finally {
       setBusy(false)
     }
@@ -110,13 +105,12 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
     const t = text.trim()
     if (!t || busy || !(check && !stale && check.safe === true)) return
     setBusy('sending')
-    setError('')
     try {
       await onSend(t)
       setText('')
       resetDraft()
     } catch (err) {
-      setError(err.message || 'Couldn’t send just now.')
+      notify('Couldn’t send just now — please try again.', { type: 'error' })
     } finally {
       setBusy(false)
     }
@@ -169,7 +163,6 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
               </div>
             )}
           </div>
-          {error && <div className="inline-error">{error}</div>}
           <div className="composer-actions">
             <button className="btn btn-primary" type="submit" disabled={!text.trim() || busy === 'reading'}>
               {busy === 'reading' ? 'Reading…' : 'Read'}
@@ -262,8 +255,6 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
               </div>
             </form>
           )}
-
-          {error && <div className="inline-error">{error}</div>}
 
           {/* Two FIXED action slots — they only enable/disable/relabel, never
               appear or vanish, so the input never shifts under your cursor. */}

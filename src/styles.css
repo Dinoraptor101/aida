@@ -718,6 +718,46 @@ input, textarea {
 .legend li { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--ink-soft); }
 .legend .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; }
 
+/* Floating notifications — fixed overlay below the appbar, never shifts layout. */
+.toast-host {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 76px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  width: min(92%, 440px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  width: 100%;
+  text-align: left;
+  -webkit-appearance: none; appearance: none;
+  border: 1px solid var(--hairline-strong);
+  background: var(--paper-raised);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  box-shadow: 0 8px 24px rgba(43, 43, 43, 0.14);
+  cursor: pointer;
+  animation: toast-in 0.22s ease-out;
+}
+.toast.error {
+  border-color: var(--alarm);
+  background: var(--alarm-wash);
+  color: var(--alarm-ink);
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+
 .row-working {
   align-self: flex-start;
   margin: 2px 4px 4px;

@@ -2,7 +2,9 @@ import { useEffect, useState, useCallback } from 'react'
 import { api } from './api.js'
 import PartnerPicker from './components/PartnerPicker.jsx'
 import Thread from './components/Thread.jsx'
-import { initials } from './components/Bits.jsx'
+import { initials, Working } from './components/Bits.jsx'
+import ToastHost from './components/ToastHost.jsx'
+import { notify } from './toast.js'
 
 // Normalise sender for memory we append optimistically.
 const meMsg = (text, extra = {}) => ({
@@ -111,6 +113,8 @@ export default function App() {
         setPartner((prev) =>
           prev ? { ...prev, thread: [...(prev.thread || []), msg] } : prev
         )
+      } catch (err) {
+        notify('Aida couldn’t reach the reader just now — please try again.', { type: 'error' })
       } finally {
         setPending(null)
       }
@@ -138,14 +142,18 @@ export default function App() {
   const onSend = useCallback(
     async (text) => {
       if (!activeId) return
-      const sent = await api.send(activeId, text)
-      const msg =
-        sent && sent.id
-          ? { ...sent, from: 'me', read: sent.read || undefined }
-          : meMsg(text)
-      setPartner((prev) =>
-        prev ? { ...prev, thread: [...(prev.thread || []), msg] } : prev
-      )
+      try {
+        const sent = await api.send(activeId, text)
+        const msg =
+          sent && sent.id
+            ? { ...sent, from: 'me', read: sent.read || undefined }
+            : meMsg(text)
+        setPartner((prev) =>
+          prev ? { ...prev, thread: [...(prev.thread || []), msg] } : prev
+        )
+      } catch (err) {
+        notify('Couldn’t send just now — please try again.', { type: 'error' })
+      }
     },
     [activeId]
   )
@@ -167,6 +175,8 @@ export default function App() {
             return { ...prev, thread }
           })
         }
+      } catch (err) {
+        notify('Couldn’t update that just now — please try again.', { type: 'error' })
       } finally {
         setRepairingId(null)
       }
@@ -178,6 +188,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <ToastHost />
       {!inThread ? (
         <>
           <header className="appbar">
@@ -222,10 +233,7 @@ export default function App() {
 
           {partnerLoading ? (
             <div className="boot">
-              <div className="working">
-                <span className="breathe" aria-hidden="true" />
-                opening…
-              </div>
+              <Working label="opening…" />
             </div>
           ) : partnerError ? (
             <div className="scroll">
