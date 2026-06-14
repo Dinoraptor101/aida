@@ -277,7 +277,16 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
               {check ? 'Re-check' : 'Check emotion'}
             </button>
 
-            {unsafe ? (
+            {unsafe && showIntent ? (
+              <button
+                className="btn"
+                type="button"
+                onClick={() => setShowIntent(false)}
+                disabled={!!busy}
+              >
+                Cancel
+              </button>
+            ) : unsafe ? (
               <button
                 className="btn btn-primary"
                 type="button"
