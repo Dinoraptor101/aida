@@ -17,7 +17,9 @@ function client() {
   if (!_client) {
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set')
-    _client = new Anthropic({ apiKey })
+    // Resilient defaults: the SDK retries transient errors (429 / 5xx / network)
+    // with backoff, and a per-call timeout keeps a hung request from wedging.
+    _client = new Anthropic({ apiKey, maxRetries: 4, timeout: 60000 })
   }
   return _client
 }
@@ -41,19 +43,29 @@ export function extractJson(text) {
 }
 
 async function callJson({ system, user, maxTokens = 900 }) {
-  const res = await client().messages.create({
-    model: MODEL,
-    max_tokens: maxTokens,
-    system,
-    messages: [{ role: 'user', content: user }],
-  })
-  let thinking = ''
-  let text = ''
-  for (const block of res.content) {
-    if (block.type === 'thinking') thinking += block.thinking
-    else if (block.type === 'text') text += block.text
+  // The SDK retries transient API errors; here we also retry a malformed-JSON
+  // response once (the model occasionally fences it or trails prose).
+  let lastErr
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await client().messages.create({
+      model: MODEL,
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: 'user', content: user }],
+    })
+    let thinking = ''
+    let text = ''
+    for (const block of res.content) {
+      if (block.type === 'thinking') thinking += block.thinking
+      else if (block.type === 'text') text += block.text
+    }
+    try {
+      return { json: extractJson(text), thinking: thinking.trim() }
+    } catch (e) {
+      lastErr = e
+    }
   }
-  return { json: extractJson(text), thinking: thinking.trim() }
+  throw lastErr
 }
 
 const ACCESS =
