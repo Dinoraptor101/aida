@@ -114,6 +114,12 @@ function cleanFamily(f) {
   return FAMILY_SET.has(v) ? v : null
 }
 
+// First clean feeling word(s) only — drops trailing meta so "alarm, intensity"
+// or "frustration (mild)" render as a single tidy label.
+export function cleanEmotion(s, fallback = '') {
+  return String(s || fallback).split(/[,;(]/)[0].trim().slice(0, 24) || fallback
+}
+
 // ── RECEIVE: read an incoming message, grounded in the person ──────────────
 export async function readIncoming(partner, text, history = []) {
   const hasBaseline = !!(partner?.baseline?.summary)
@@ -150,7 +156,7 @@ export async function readIncoming(partner, text, history = []) {
   const user = `${ctx}${recent}\n\nNEW incoming message from ${partner?.name || 'them'}:\n"${text}"\n\nRead it.`
   const { json, thinking } = await callJson({ system, user, maxTokens: 1000, think: hasBaseline })
   return {
-    emotion: String(json.emotion || 'unclear').slice(0, 24),
+    emotion: cleanEmotion(json.emotion, 'unclear'),
     family: cleanFamily(json.family),
     intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
     grounded: hasBaseline ? !!json.grounded : false,
@@ -188,7 +194,7 @@ export async function checkOutgoing(partner, draft) {
   const user = `${ctx}\n\nDraft:\n"${draft}"\n\nMirror its emotion and gate it.`
   const { json } = await callJson({ system, user, maxTokens: 700 })
   return {
-    emotion: String(json.emotion || '').slice(0, 24),
+    emotion: cleanEmotion(json.emotion),
     family: cleanFamily(json.family),
     intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
     mirror: String(json.mirror || '').slice(0, 400),
@@ -214,7 +220,7 @@ export async function rewriteToIntent(partner, draft, intent) {
   return {
     rewritten: String(json.rewritten || draft).slice(0, 600),
     check: {
-      emotion: String(json.emotion || '').slice(0, 24),
+      emotion: cleanEmotion(json.emotion),
       family: cleanFamily(json.family),
       intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
       mirror: String(json.mirror || '').slice(0, 400),
@@ -255,7 +261,7 @@ export async function applyRepair(partner, lastMessageText, note) {
     `The user's correction: "${note}"\n\nRevise the read accordingly.`
   const { json } = await callJson({ system, user, maxTokens: 700 })
   return {
-    emotion: String(json.emotion || '').slice(0, 24),
+    emotion: cleanEmotion(json.emotion),
     family: cleanFamily(json.family),
     intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
     grounded: true,

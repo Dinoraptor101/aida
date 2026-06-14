@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { initials, Working } from './Bits.jsx'
+import { FAMILIES } from '../emotions.js'
 
 // Landing view: pick a person, or add a new one by pasting a few of their past
 // messages (seed → baseline). Familiar, quiet, no dashboard.
@@ -103,6 +104,18 @@ export default function PartnerPicker({ partners, loading, error, onOpen, onCrea
             {creating ? 'Learning how they write…' : 'Add person'}
           </button>
         </form>
+
+        <details className="legend">
+          <summary>What the colours mean</summary>
+          <ul>
+            {Object.values(FAMILIES).map((f) => (
+              <li key={f.label}>
+                <span className="swatch" style={{ background: f.color }} aria-hidden="true" />
+                {f.label}
+              </li>
+            ))}
+          </ul>
+        </details>
       </div>
     </div>
   )
