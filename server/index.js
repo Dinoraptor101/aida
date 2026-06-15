@@ -117,17 +117,19 @@ app.post('/api/partners/:id/rewrite', async (req, res) => {
 })
 
 // SEND — record an approved outgoing message; notes flow into the bank.
-app.post('/api/partners/:id/send', async (req, res) => {
-  try {
-    const p = store.getPartner(req.params.id)
-    if (need(res, p)) return
-    const { text } = req.body || {}
-    if (!text) return fail(res, 'text required', 400)
-    const notes = await readSelf(p, text)
-    ok(res, store.appendSent(p.id, { text, notes }))
-  } catch (e) {
-    fail(res, e)
-  }
+app.post('/api/partners/:id/send', (req, res) => {
+  const p = store.getPartner(req.params.id)
+  if (need(res, p)) return
+  const { text } = req.body || {}
+  if (!text) return fail(res, 'text required', 400)
+  // Record + respond INSTANTLY — sending must never wait on an Opus call.
+  ok(res, store.appendSent(p.id, { text, notes: [] }))
+  // Derive the emotional note for the bank in the BACKGROUND (bi-directional memory).
+  readSelf(p, text)
+    .then((notes) => {
+      if (notes && notes.length) store.addNotes(p.id, notes)
+    })
+    .catch((e) => console.error('[aida] background readSelf failed:', e?.message))
 })
 
 // REPAIR (4th-wall) — apply the user's correction to the last incoming read.

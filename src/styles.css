@@ -515,7 +515,22 @@ input, textarea {
   padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
   position: sticky;
   bottom: 0;
+  z-index: 4;
 }
+
+/* Helper panels (mirror / rewrite) float ABOVE the composer so the toggle +
+   input + buttons never move or resize. */
+.composer-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  padding: 16px 14px 12px;
+  max-height: 64vh;
+  overflow-y: auto;
+  background: linear-gradient(to top, var(--paper) 64%, transparent);
+}
+.composer-panel .mirror { margin-top: 0; }
 
 /* Segmented Them / Me toggle — a clean control. */
 .segmented {

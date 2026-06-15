@@ -94,6 +94,15 @@ export function appendSent(pid, { text, notes }) {
   return msg
 }
 
+// Add emotional notes to a partner's bank WITHOUT a new message — used to derive
+// a sent message's note in the background so /send can return instantly.
+export function addNotes(pid, notes) {
+  const p = db.partners[pid]
+  if (!p) return
+  pushNotes(p, notes)
+  flush()
+}
+
 export function lastIncoming(pid) {
   const p = db.partners[pid]
   if (!p) return null

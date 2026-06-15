@@ -134,6 +134,68 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
 
   return (
     <div className="composer">
+      {/* Floating explanation panel — sits ABOVE the fixed composer so the
+          toggle + input + buttons never move or resize. */}
+      {mode === 'me' && check && (
+        <div className="composer-panel">
+          <div
+            className={`mirror ${check.safe ? 'safe' : 'alarm'} ${stale ? 'stale' : ''}`}
+            role={unsafe ? 'alert' : undefined}
+            style={emo && emo.color ? { '--emo': emo.color } : undefined}
+          >
+            <div className="card-emotion" style={{ marginBottom: 8 }}>
+              <span className="emo">{check.emotion || '—'}</span>
+              <Intensity value={check.intensity} />
+            </div>
+            {check.mirror && <p className="mirror-line">{check.mirror}</p>}
+
+            {safe && (
+              <span className="settled">
+                <span className="cue-dot" aria-hidden="true" />
+                This reads the way you mean it.
+              </span>
+            )}
+
+            {unsafe && (
+              <>
+                {check.warning && <p className="warn">{check.warning}</p>}
+                {check.reframe && (
+                  <div className="reframe">
+                    <span className="k">a softer way</span>
+                    {check.reframe}
+                  </div>
+                )}
+              </>
+            )}
+
+            {stale && <p className="panel-k stale-note">edited — re-checking shortly…</p>}
+          </div>
+
+          {unsafe && showIntent && (
+            <form className="rewrite" onSubmit={doRewrite}>
+              <label className="field-label" htmlFor="intent">
+                What did you mean to say?
+              </label>
+              <div className="rewrite-row">
+                <textarea
+                  id="intent"
+                  className="textarea"
+                  value={intent}
+                  onChange={(e) => setIntent(e.target.value)}
+                  placeholder="e.g. I’m frustrated about the deadline, not at you"
+                  rows={2}
+                  autoFocus
+                  disabled={busy === 'rewriting'}
+                />
+                <button className="btn btn-primary btn-sm" type="submit" disabled={!intent.trim() || busy === 'rewriting'}>
+                  {busy === 'rewriting' ? '…' : 'Rewrite'}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+
       <div className="segmented" data-mode={mode} role="group" aria-label="Who is this message from">
         <span className="seg-thumb" aria-hidden="true" />
         <button type="button" aria-pressed={mode === 'them'} onClick={() => switchMode('them')}>
@@ -194,67 +256,6 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
               </div>
             )}
           </div>
-
-          {/* Mirror panel — kept on screen once it exists; dims when stale so the
-              layout never collapses mid-edit. */}
-          {check && (
-            <div
-              className={`mirror ${check.safe ? 'safe' : 'alarm'} ${stale ? 'stale' : ''}`}
-              role={unsafe ? 'alert' : undefined}
-              style={emo && emo.color ? { '--emo': emo.color } : undefined}
-            >
-              <div className="card-emotion" style={{ marginBottom: 8 }}>
-                <span className="emo">{check.emotion || '—'}</span>
-                <Intensity value={check.intensity} />
-              </div>
-              {check.mirror && <p className="mirror-line">{check.mirror}</p>}
-
-              {safe && (
-                <span className="settled">
-                  <span className="cue-dot" aria-hidden="true" />
-                  This reads the way you mean it.
-                </span>
-              )}
-
-              {unsafe && (
-                <>
-                  {check.warning && <p className="warn">{check.warning}</p>}
-                  {check.reframe && (
-                    <div className="reframe">
-                      <span className="k">a softer way</span>
-                      {check.reframe}
-                    </div>
-                  )}
-                </>
-              )}
-
-              {stale && <p className="panel-k stale-note">edited — re-checking shortly…</p>}
-            </div>
-          )}
-
-          {/* Rewrite loop — only when held by a fresh, unsafe gate (and opened). */}
-          {unsafe && showIntent && (
-            <form className="rewrite" onSubmit={doRewrite}>
-              <label className="field-label" htmlFor="intent">
-                What did you mean to say?
-              </label>
-              <div className="rewrite-row">
-                <textarea
-                  id="intent"
-                  className="textarea"
-                  value={intent}
-                  onChange={(e) => setIntent(e.target.value)}
-                  placeholder="e.g. I’m frustrated about the deadline, not at you"
-                  rows={2}
-                  autoFocus
-                  disabled={busy === 'rewriting'}
-                />
-                <button className="btn btn-primary btn-sm" type="submit" disabled={!intent.trim() || busy === 'rewriting'}>
-                  {busy === 'rewriting' ? '…' : 'Rewrite'}
-                </button>
-              </div>
-            </form>
-          )}
 
           {/* Two FIXED action slots — they only enable/disable/relabel, never
               appear or vanish, so the input never shifts under your cursor. */}
