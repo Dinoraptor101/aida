@@ -135,16 +135,17 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
   const unsafe = fresh && check.safe === false
   const emo = check ? emotionStyle(check.emotion, check.family) : null
 
-  // Auto re-check: 5s after the last keystroke, when the Me-mode draft is dirty
-  // (never checked, or edited since the last check). The manual buttons still
-  // give an instant check; this just saves a tap when you pause.
-  const autoArmed = mode === 'me' && !!text.trim() && !busy && (!check || stale)
+  // Auto-update 5s after the last keystroke (Me mode):
+  //   · non-blank + dirty       → re-check
+  //   · blank + a panel showing → clear it, so the description disappears
+  const recheckArmed = mode === 'me' && !!text.trim() && !busy && (!check || stale)
+  const clearArmed = mode === 'me' && !text.trim() && !busy && !!check
   useEffect(() => {
-    if (!autoArmed) return undefined
-    const id = setTimeout(() => doCheck(), 5000)
+    if (!recheckArmed && !clearArmed) return undefined
+    const id = setTimeout(() => (recheckArmed ? doCheck() : resetDraft()), 5000)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, autoArmed])
+  }, [text, recheckArmed, clearArmed])
 
   return (
     <div className="composer">
