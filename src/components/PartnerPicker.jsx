@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { initials, Working } from './Bits.jsx'
+import { FAMILIES } from '../emotions.js'
+import { notify } from '../toast.js'
 
 // Landing view: pick a person, or add a new one by pasting a few of their past
 // messages (seed → baseline). Familiar, quiet, no dashboard.
@@ -7,14 +9,12 @@ export default function PartnerPicker({ partners, loading, error, onOpen, onCrea
   const [name, setName] = useState('')
   const [seed, setSeed] = useState('')
   const [creating, setCreating] = useState(false)
-  const [formError, setFormError] = useState('')
 
   const submit = async (e) => {
     e.preventDefault()
     const n = name.trim()
     if (!n || creating) return
     setCreating(true)
-    setFormError('')
     const seedMessages = seed
       .split('\n')
       .map((s) => s.trim())
@@ -24,7 +24,7 @@ export default function PartnerPicker({ partners, loading, error, onOpen, onCrea
       setName('')
       setSeed('')
     } catch (err) {
-      setFormError(err.message || 'Could not add this person.')
+      notify('Couldn’t add this person just now — please try again.', { type: 'error' })
     } finally {
       setCreating(false)
     }
@@ -97,12 +97,22 @@ export default function PartnerPicker({ partners, loading, error, onOpen, onCrea
             </span>
           </label>
 
-          {formError && <div className="inline-error">{formError}</div>}
-
           <button className="btn btn-primary btn-block" type="submit" disabled={!name.trim() || creating}>
             {creating ? 'Learning how they write…' : 'Add person'}
           </button>
         </form>
+
+        <details className="legend">
+          <summary>What the colours mean</summary>
+          <ul>
+            {Object.values(FAMILIES).map((f) => (
+              <li key={f.label}>
+                <span className="swatch" style={{ background: f.color }} aria-hidden="true" />
+                {f.label}
+              </li>
+            ))}
+          </ul>
+        </details>
       </div>
     </div>
   )

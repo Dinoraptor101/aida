@@ -515,7 +515,22 @@ input, textarea {
   padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
   position: sticky;
   bottom: 0;
+  z-index: 4;
 }
+
+/* Helper panels (mirror / rewrite) float ABOVE the composer so the toggle +
+   input + buttons never move or resize. */
+.composer-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  padding: 16px 14px 12px;
+  max-height: 64vh;
+  overflow-y: auto;
+  background: linear-gradient(to top, var(--paper) 64%, transparent);
+}
+.composer-panel .mirror { margin-top: 0; }
 
 /* Segmented Them / Me toggle — a clean control. */
 .segmented {
@@ -680,18 +695,83 @@ input, textarea {
   font-size: 13.5px;
   font-style: italic;
 }
-.working .breathe {
-  width: 7px; height: 7px; border-radius: 50%;
+.working .dots { display: inline-flex; gap: 4px; }
+.working .dots i {
+  width: 5px; height: 5px; border-radius: 50%;
   background: var(--accent);
-  animation: breathe 1.5s ease-in-out infinite;
+  animation: dot 1.1s ease-in-out infinite;
 }
-@keyframes breathe {
-  0%, 100% { opacity: 0.35; transform: scale(0.85); }
-  50%      { opacity: 1;    transform: scale(1); }
+.working .dots i:nth-child(2) { animation-delay: 0.16s; }
+.working .dots i:nth-child(3) { animation-delay: 0.32s; }
+@keyframes dot {
+  0%, 75%, 100% { opacity: 0.25; transform: translateY(0); }
+  35%           { opacity: 1;    transform: translateY(-3px); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .working .breathe { animation: none; opacity: 0.7; }
+  .working .dots i { animation: none; opacity: 0.7; }
 }
+
+/* Colour legend on the landing — collapsed by default, calm. */
+.legend { margin-top: 24px; }
+.legend > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.legend > summary::-webkit-details-marker { display: none; }
+.legend ul {
+  list-style: none;
+  margin: 13px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px 16px;
+}
+.legend li { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--ink-soft); }
+.legend .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+
+/* Floating notifications — fixed overlay below the appbar, never shifts layout. */
+.toast-host {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 76px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  width: min(92%, 440px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  width: 100%;
+  text-align: left;
+  -webkit-appearance: none; appearance: none;
+  border: 1px solid var(--hairline-strong);
+  background: var(--paper-raised);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  box-shadow: 0 8px 24px rgba(43, 43, 43, 0.14);
+  cursor: pointer;
+  animation: toast-in 0.22s ease-out;
+}
+.toast.error {
+  border-color: var(--alarm);
+  background: var(--alarm-wash);
+  color: var(--alarm-ink);
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
 
 .row-working {
   align-self: flex-start;

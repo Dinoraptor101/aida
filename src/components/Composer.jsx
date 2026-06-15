@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Intensity, Working } from './Bits.jsx'
 import { emotionStyle } from '../emotions.js'
+import { notify } from '../toast.js'
 
 // The composer with a Them / Me segmented toggle.
 //  - THEM (receive): submit a message you RECEIVED → parent calls /receive.
@@ -15,9 +16,11 @@ import { emotionStyle } from '../emotions.js'
 // GATE RULE: [Approve] is enabled ONLY when the latest check is fresh AND safe.
 export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
   const [mode, setMode] = useState('them') // 'them' | 'me'
-  const [text, setText] = useState('')
+  // Per-mode drafts — switching Them/Me preserves each independently (no data loss).
+  const [texts, setTexts] = useState({ them: '', me: '' })
+  const text = texts[mode]
+  const setText = (v) => setTexts((t) => ({ ...t, [mode]: v }))
   const [busy, setBusy] = useState(false) // 'reading' | 'checking' | 'rewriting' | 'sending' | false
-  const [error, setError] = useState('')
 
   // ME-mode draft state.
   const [check, setCheck] = useState(null) // latest Check for the current draft
@@ -27,10 +30,7 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
 
   const switchMode = (m) => {
     if (m === mode) return
-    setMode(m)
-    setText('')
-    setError('')
-    resetDraft()
+    setMode(m) // text + check state are per-mode and preserved — no data loss
   }
 
   const resetDraft = () => {
@@ -44,8 +44,7 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
   // mark it stale, so the composer height doesn't change while typing.
   const onText = (v) => {
     setText(v)
-    if (check) setStale(true)
-    if (error) setError('')
+    if (mode === 'me' && check) setStale(true)
   }
 
   // THEM — receive an incoming message.
@@ -54,12 +53,11 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
     const t = text.trim()
     if (!t || busy) return
     setBusy('reading')
-    setError('')
     try {
       await onReceive(t)
       setText('')
     } catch (err) {
-      setError(err.message || 'Aida couldn’t read that just now.')
+      notify('Aida couldn’t reach the reader just now — please try again.', { type: 'error' })
     } finally {
       setBusy(false)
     }
@@ -70,14 +68,13 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
     const t = text.trim()
     if (!t || busy) return
     setBusy('checking')
-    setError('')
     try {
       const c = await onCheck(t)
       setCheck(c)
       setStale(false)
       if (c && c.safe === false) setShowIntent(false)
     } catch (err) {
-      setError(err.message || 'Aida couldn’t check that just now.')
+      notify('Aida couldn’t check that just now — please try again.', { type: 'error' })
     } finally {
       setBusy(false)
     }
@@ -90,7 +87,6 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
     const want = intent.trim()
     if (!t || !want || busy) return
     setBusy('rewriting')
-    setError('')
     try {
       const { rewritten, check: c } = await onRewrite(t, want)
       if (rewritten) setText(rewritten)
@@ -99,24 +95,36 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
       setIntent('')
       if (c && c.safe === true) setShowIntent(false)
     } catch (err) {
-      setError(err.message || 'Aida couldn’t rewrite that just now.')
+      notify('Aida couldn’t rewrite that just now — please try again.', { type: 'error' })
     } finally {
       setBusy(false)
     }
   }
 
-  // ME — approve & send (only reachable when the latest check is fresh + safe).
-  const doApprove = async () => {
+  // ME — Send. Checking is IMPLICIT: if the draft isn't freshly checked, check
+  // it now and only send when it's safe. If it would wound, the gate panel shows
+  // and the action becomes Rewrite. (The 5s auto-check usually does this first.)
+  const doSend = async () => {
     const t = text.trim()
-    if (!t || busy || !(check && !stale && check.safe === true)) return
-    setBusy('sending')
-    setError('')
+    if (!t || busy) return
     try {
+      let c = check && !stale ? check : null
+      if (!c) {
+        setBusy('checking')
+        c = await onCheck(t)
+        setCheck(c)
+        setStale(false)
+      }
+      if (!c || c.safe === false) {
+        setShowIntent(false) // would wound → gate panel is showing; don't send
+        return
+      }
+      setBusy('sending')
       await onSend(t)
       setText('')
       resetDraft()
     } catch (err) {
-      setError(err.message || 'Couldn’t send just now.')
+      notify('Aida couldn’t finish that just now — please try again.', { type: 'error' })
     } finally {
       setBusy(false)
     }
@@ -127,19 +135,82 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
   const unsafe = fresh && check.safe === false
   const emo = check ? emotionStyle(check.emotion, check.family) : null
 
-  // Auto re-check: 5s after the last keystroke, when the Me-mode draft is dirty
-  // (never checked, or edited since the last check). The manual buttons still
-  // give an instant check; this just saves a tap when you pause.
-  const autoArmed = mode === 'me' && !!text.trim() && !busy && (!check || stale)
+  // Auto-update 5s after the last keystroke (Me mode):
+  //   · non-blank + dirty       → re-check
+  //   · blank + a panel showing → clear it, so the description disappears
+  const recheckArmed = mode === 'me' && !!text.trim() && !busy && (!check || stale)
+  const clearArmed = mode === 'me' && !text.trim() && !busy && !!check
   useEffect(() => {
-    if (!autoArmed) return undefined
-    const id = setTimeout(() => doCheck(), 5000)
+    if (!recheckArmed && !clearArmed) return undefined
+    const id = setTimeout(() => (recheckArmed ? doCheck() : resetDraft()), 5000)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, autoArmed])
+  }, [text, recheckArmed, clearArmed])
 
   return (
     <div className="composer">
+      {/* Floating explanation panel — sits ABOVE the fixed composer so the
+          toggle + input + buttons never move or resize. */}
+      {mode === 'me' && check && (
+        <div className="composer-panel">
+          <div
+            className={`mirror ${check.safe ? 'safe' : 'alarm'} ${stale ? 'stale' : ''}`}
+            role={unsafe ? 'alert' : undefined}
+            style={emo && emo.color ? { '--emo': emo.color } : undefined}
+          >
+            <div className="card-emotion" style={{ marginBottom: 8 }}>
+              <span className="emo">{check.emotion || '—'}</span>
+              <Intensity value={check.intensity} />
+            </div>
+            {check.mirror && <p className="mirror-line">{check.mirror}</p>}
+
+            {safe && (
+              <span className="settled">
+                <span className="cue-dot" aria-hidden="true" />
+                This reads the way you mean it.
+              </span>
+            )}
+
+            {unsafe && (
+              <>
+                {check.warning && <p className="warn">{check.warning}</p>}
+                {check.reframe && (
+                  <div className="reframe">
+                    <span className="k">a softer way</span>
+                    {check.reframe}
+                  </div>
+                )}
+              </>
+            )}
+
+            {stale && <p className="panel-k stale-note">edited — re-checking shortly…</p>}
+          </div>
+
+          {unsafe && showIntent && (
+            <form className="rewrite" onSubmit={doRewrite}>
+              <label className="field-label" htmlFor="intent">
+                What did you mean to say?
+              </label>
+              <div className="rewrite-row">
+                <textarea
+                  id="intent"
+                  className="textarea"
+                  value={intent}
+                  onChange={(e) => setIntent(e.target.value)}
+                  placeholder="e.g. I’m frustrated about the deadline, not at you"
+                  rows={2}
+                  autoFocus
+                  disabled={busy === 'rewriting'}
+                />
+                <button className="btn btn-primary btn-sm" type="submit" disabled={!intent.trim() || busy === 'rewriting'}>
+                  {busy === 'rewriting' ? '…' : 'Rewrite'}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+
       <div className="segmented" data-mode={mode} role="group" aria-label="Who is this message from">
         <span className="seg-thumb" aria-hidden="true" />
         <button type="button" aria-pressed={mode === 'them'} onClick={() => switchMode('them')}>
@@ -169,7 +240,6 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
               </div>
             )}
           </div>
-          {error && <div className="inline-error">{error}</div>}
           <div className="composer-actions">
             <button className="btn btn-primary" type="submit" disabled={!text.trim() || busy === 'reading'}>
               {busy === 'reading' ? 'Reading…' : 'Read'}
@@ -202,82 +272,19 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
             )}
           </div>
 
-          {/* Mirror panel — kept on screen once it exists; dims when stale so the
-              layout never collapses mid-edit. */}
-          {check && (
-            <div
-              className={`mirror ${check.safe ? 'safe' : 'alarm'} ${stale ? 'stale' : ''}`}
-              role={unsafe ? 'alert' : undefined}
-              style={emo && emo.color ? { '--emo': emo.color } : undefined}
-            >
-              <div className="card-emotion" style={{ marginBottom: 8 }}>
-                <span className="emo">{check.emotion || '—'}</span>
-                <Intensity value={check.intensity} />
-              </div>
-              {check.mirror && <p className="mirror-line">{check.mirror}</p>}
-
-              {safe && (
-                <span className="settled">
-                  <span className="cue-dot" aria-hidden="true" />
-                  This reads the way you mean it.
-                </span>
-              )}
-
-              {unsafe && (
-                <>
-                  {check.warning && <p className="warn">{check.warning}</p>}
-                  {check.reframe && (
-                    <div className="reframe">
-                      <span className="k">a softer way</span>
-                      {check.reframe}
-                    </div>
-                  )}
-                </>
-              )}
-
-              {stale && <p className="panel-k stale-note">edited — re-checking shortly…</p>}
-            </div>
-          )}
-
-          {/* Rewrite loop — only when held by a fresh, unsafe gate (and opened). */}
-          {unsafe && showIntent && (
-            <form className="rewrite" onSubmit={doRewrite}>
-              <label className="field-label" htmlFor="intent">
-                What did you mean to say?
-              </label>
-              <div className="rewrite-row">
-                <textarea
-                  id="intent"
-                  className="textarea"
-                  value={intent}
-                  onChange={(e) => setIntent(e.target.value)}
-                  placeholder="e.g. I’m frustrated about the deadline, not at you"
-                  rows={2}
-                  autoFocus
-                  disabled={busy === 'rewriting'}
-                />
-                <button className="btn btn-primary btn-sm" type="submit" disabled={!intent.trim() || busy === 'rewriting'}>
-                  {busy === 'rewriting' ? '…' : 'Rewrite'}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {error && <div className="inline-error">{error}</div>}
-
-          {/* Two FIXED action slots — they only enable/disable/relabel, never
-              appear or vanish, so the input never shifts under your cursor. */}
+          {/* One action. Checking is implicit — it happens 5s after you stop
+              typing, and again on Send. No separate Check button. */}
           <div className="composer-actions">
-            <button
-              className="btn"
-              type="button"
-              onClick={doCheck}
-              disabled={!text.trim() || !!busy}
-            >
-              {check ? 'Re-check' : 'Check emotion'}
-            </button>
-
-            {unsafe ? (
+            {unsafe && showIntent ? (
+              <button
+                className="btn"
+                type="button"
+                onClick={() => setShowIntent(false)}
+                disabled={!!busy}
+              >
+                Cancel
+              </button>
+            ) : unsafe ? (
               <button
                 className="btn btn-primary"
                 type="button"
@@ -290,10 +297,10 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
               <button
                 className="btn btn-primary"
                 type="button"
-                onClick={doApprove}
-                disabled={!safe || !!busy}
+                onClick={doSend}
+                disabled={!text.trim() || !!busy}
               >
-                {busy === 'sending' ? 'Sending…' : 'Approve & send'}
+                {busy === 'checking' ? 'Checking…' : busy === 'sending' ? 'Sending…' : 'Send'}
               </button>
             )}
           </div>

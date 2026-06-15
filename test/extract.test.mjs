@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { extractJson } from '../server/ai.js'
+import { extractJson, cleanEmotion } from '../server/ai.js'
 
 // extractJson is the load-bearing parse between Opus and the app — if it's
 // brittle, reads come back blank. These pin its real-world cases.
@@ -26,4 +26,11 @@ test('handles nested braces correctly', () => {
 
 test('throws when there is no JSON object', () => {
   assert.throws(() => extractJson('no json here'))
+})
+
+test('cleanEmotion drops trailing meta and trims', () => {
+  assert.equal(cleanEmotion('alarm, intensity'), 'alarm')
+  assert.equal(cleanEmotion('frustration (mild)'), 'frustration')
+  assert.equal(cleanEmotion('  warm pride '), 'warm pride')
+  assert.equal(cleanEmotion('', 'unclear'), 'unclear')
 })

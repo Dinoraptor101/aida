@@ -17,7 +17,9 @@ function client() {
   if (!_client) {
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set')
-    _client = new Anthropic({ apiKey })
+    // Resilient defaults: the SDK retries transient errors (429 / 5xx / network)
+    // with backoff, and a per-call timeout keeps a hung request from wedging.
+    _client = new Anthropic({ apiKey, maxRetries: 4, timeout: 60000 })
   }
   return _client
 }
@@ -41,19 +43,29 @@ export function extractJson(text) {
 }
 
 async function callJson({ system, user, maxTokens = 900 }) {
-  const res = await client().messages.create({
-    model: MODEL,
-    max_tokens: maxTokens,
-    system,
-    messages: [{ role: 'user', content: user }],
-  })
-  let thinking = ''
-  let text = ''
-  for (const block of res.content) {
-    if (block.type === 'thinking') thinking += block.thinking
-    else if (block.type === 'text') text += block.text
+  // The SDK retries transient API errors; here we also retry a malformed-JSON
+  // response once (the model occasionally fences it or trails prose).
+  let lastErr
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await client().messages.create({
+      model: MODEL,
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: 'user', content: user }],
+    })
+    let thinking = ''
+    let text = ''
+    for (const block of res.content) {
+      if (block.type === 'thinking') thinking += block.thinking
+      else if (block.type === 'text') text += block.text
+    }
+    try {
+      return { json: extractJson(text), thinking: thinking.trim() }
+    } catch (e) {
+      lastErr = e
+    }
   }
-  return { json: extractJson(text), thinking: thinking.trim() }
+  throw lastErr
 }
 
 const ACCESS =
@@ -102,6 +114,12 @@ function cleanFamily(f) {
   return FAMILY_SET.has(v) ? v : null
 }
 
+// First clean feeling word(s) only — drops trailing meta so "alarm, intensity"
+// or "frustration (mild)" render as a single tidy label.
+export function cleanEmotion(s, fallback = '') {
+  return String(s || fallback).split(/[,;(]/)[0].trim().slice(0, 24) || fallback
+}
+
 // ── RECEIVE: read an incoming message, grounded in the person ──────────────
 export async function readIncoming(partner, text, history = []) {
   const hasBaseline = !!(partner?.baseline?.summary)
@@ -138,7 +156,7 @@ export async function readIncoming(partner, text, history = []) {
   const user = `${ctx}${recent}\n\nNEW incoming message from ${partner?.name || 'them'}:\n"${text}"\n\nRead it.`
   const { json, thinking } = await callJson({ system, user, maxTokens: 1000, think: hasBaseline })
   return {
-    emotion: String(json.emotion || 'unclear').slice(0, 24),
+    emotion: cleanEmotion(json.emotion, 'unclear'),
     family: cleanFamily(json.family),
     intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
     grounded: hasBaseline ? !!json.grounded : false,
@@ -176,7 +194,7 @@ export async function checkOutgoing(partner, draft) {
   const user = `${ctx}\n\nDraft:\n"${draft}"\n\nMirror its emotion and gate it.`
   const { json } = await callJson({ system, user, maxTokens: 700 })
   return {
-    emotion: String(json.emotion || '').slice(0, 24),
+    emotion: cleanEmotion(json.emotion),
     family: cleanFamily(json.family),
     intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
     mirror: String(json.mirror || '').slice(0, 400),
@@ -202,7 +220,7 @@ export async function rewriteToIntent(partner, draft, intent) {
   return {
     rewritten: String(json.rewritten || draft).slice(0, 600),
     check: {
-      emotion: String(json.emotion || '').slice(0, 24),
+      emotion: cleanEmotion(json.emotion),
       family: cleanFamily(json.family),
       intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
       mirror: String(json.mirror || '').slice(0, 400),
@@ -243,7 +261,7 @@ export async function applyRepair(partner, lastMessageText, note) {
     `The user's correction: "${note}"\n\nRevise the read accordingly.`
   const { json } = await callJson({ system, user, maxTokens: 700 })
   return {
-    emotion: String(json.emotion || '').slice(0, 24),
+    emotion: cleanEmotion(json.emotion),
     family: cleanFamily(json.family),
     intensity: Math.max(0, Math.min(1, Number(json.intensity) || 0.5)),
     grounded: true,

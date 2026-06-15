@@ -35,7 +35,11 @@ export function Intensity({ value }) {
 export function Working({ label }) {
   return (
     <span className="working">
-      <span className="breathe" aria-hidden="true" />
+      <span className="dots" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
       {label}
     </span>
   )
