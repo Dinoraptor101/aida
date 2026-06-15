@@ -100,17 +100,30 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
     }
   }
 
-  // ME — approve & send (only reachable when the latest check is fresh + safe).
-  const doApprove = async () => {
+  // ME — Send. Checking is IMPLICIT: if the draft isn't freshly checked, check
+  // it now and only send when it's safe. If it would wound, the gate panel shows
+  // and the action becomes Rewrite. (The 5s auto-check usually does this first.)
+  const doSend = async () => {
     const t = text.trim()
-    if (!t || busy || !(check && !stale && check.safe === true)) return
-    setBusy('sending')
+    if (!t || busy) return
     try {
+      let c = check && !stale ? check : null
+      if (!c) {
+        setBusy('checking')
+        c = await onCheck(t)
+        setCheck(c)
+        setStale(false)
+      }
+      if (!c || c.safe === false) {
+        setShowIntent(false) // would wound → gate panel is showing; don't send
+        return
+      }
+      setBusy('sending')
       await onSend(t)
       setText('')
       resetDraft()
     } catch (err) {
-      notify('Couldn’t send just now — please try again.', { type: 'error' })
+      notify('Aida couldn’t finish that just now — please try again.', { type: 'error' })
     } finally {
       setBusy(false)
     }
@@ -257,18 +270,9 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
             )}
           </div>
 
-          {/* Two FIXED action slots — they only enable/disable/relabel, never
-              appear or vanish, so the input never shifts under your cursor. */}
+          {/* One action. Checking is implicit — it happens 5s after you stop
+              typing, and again on Send. No separate Check button. */}
           <div className="composer-actions">
-            <button
-              className="btn"
-              type="button"
-              onClick={doCheck}
-              disabled={!text.trim() || !!busy}
-            >
-              {check ? 'Re-check' : 'Check emotion'}
-            </button>
-
             {unsafe && showIntent ? (
               <button
                 className="btn"
@@ -291,10 +295,10 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
               <button
                 className="btn btn-primary"
                 type="button"
-                onClick={doApprove}
-                disabled={!safe || !!busy}
+                onClick={doSend}
+                disabled={!text.trim() || !!busy}
               >
-                {busy === 'sending' ? 'Sending…' : 'Approve & send'}
+                {busy === 'checking' ? 'Checking…' : busy === 'sending' ? 'Sending…' : 'Send'}
               </button>
             )}
           </div>
