@@ -920,6 +920,9 @@ input, textarea {
   font-style: italic;
 }
 
+/* Retry after a transient synthesis failure. */
+.tom-retry { margin-top: 13px; }
+
 /* The very first load. */
 .boot {
   flex: 1;

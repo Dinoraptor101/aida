@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { Working } from './Bits.jsx'
 
@@ -8,40 +8,76 @@ import { Working } from './Bits.jsx'
 // them — ToM, not sentiment. "Remember THEM, not their words."
 export default function PerspectivePanel({ partnerId, partnerName, onClose }) {
   const [state, setState] = useState({ loading: true, error: '', data: null })
+  const panelRef = useRef(null)
+  const reqId = useRef(0) // guards against a stale/raced response landing late
 
-  // Synthesize when the panel opens (or the partner changes).
-  useEffect(() => {
-    let alive = true
+  // Synthesize (on open, on partner change, or on a manual retry).
+  const load = useCallback(() => {
+    const my = ++reqId.current
     setState({ loading: true, error: '', data: null })
     api
       .perspective(partnerId)
-      .then((d) => alive && setState({ loading: false, error: '', data: d }))
-      .catch(
-        (e) =>
-          alive &&
+      .then((d) => {
+        if (my === reqId.current) setState({ loading: false, error: '', data: d })
+      })
+      .catch((e) => {
+        if (my === reqId.current)
           setState({ loading: false, error: e.message || 'Could not reach Aida just now.', data: null })
-      )
-    return () => {
-      alive = false
-    }
+      })
   }, [partnerId])
 
-  // Close on Escape — calm, keyboard-reachable.
+  useEffect(() => {
+    load()
+    return () => {
+      reqId.current++ // invalidate any in-flight request on unmount / partner change
+    }
+  }, [load])
+
+  // Move focus into the dialog on open (the close button is always present).
+  useEffect(() => {
+    panelRef.current?.querySelector('.tom-close')?.focus()
+  }, [])
+
+  // Escape closes; Tab is trapped within the panel (it's a modal dialog).
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (e.key === 'Tab' && panelRef.current) {
+        const f = Array.from(
+          panelRef.current.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((el) => !el.disabled)
+        if (!f.length) return
+        const first = f[0]
+        const last = f[f.length - 1]
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
   const { loading, error, data } = state
+  // A network reject OR a server-side fallback (grounded:false + error:true) is a
+  // transient failure — distinct from a genuine cold start, and offers a retry.
+  const failed = !!error || (data && data.error === true)
   const grounded = data && data.grounded === true
 
   return (
     <div className="tom-scrim" onClick={onClose}>
       <div
         className="tom-panel"
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={`What Aida knows about ${partnerName}`}
@@ -58,9 +94,14 @@ export default function PerspectivePanel({ partnerId, partnerName, onClose }) {
           <div className="tom-body">
             <Working label="gathering what Aida has learned…" />
           </div>
-        ) : error ? (
+        ) : failed ? (
           <div className="tom-body">
-            <p className="learning-note">{error}</p>
+            <p className="learning-note">
+              {error || `Aida couldn't gather this just now — please try again in a moment.`}
+            </p>
+            <button className="btn btn-sm tom-retry" onClick={load}>
+              Try again
+            </button>
           </div>
         ) : grounded ? (
           <div className="tom-body">

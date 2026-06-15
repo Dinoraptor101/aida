@@ -87,6 +87,9 @@ export default function App() {
     loadPartners() // refresh counts/baseline flags
   }
 
+  // Stable so PerspectivePanel's key/focus effects don't re-subscribe each render.
+  const closeTom = useCallback(() => setShowTom(false), [])
+
   // Create a new partner and open them.
   const createPartner = useCallback(async (name, seedMessages) => {
     const p = await api.createPartner(name, seedMessages)
@@ -252,7 +255,7 @@ export default function App() {
             <PerspectivePanel
               partnerId={partner.id}
               partnerName={partner.name}
-              onClose={() => setShowTom(false)}
+              onClose={closeTom}
             />
           )}
 

@@ -37,7 +37,7 @@ const FALLBACK = {
     safe: true, warning: '', reframe: '',
   }),
   perspective: () => ({
-    grounded: false, selfView: '', yourView: '', gap: '', theyKnow: [],
+    grounded: false, error: true, selfView: '', yourView: '', gap: '', theyKnow: [],
   }),
 }
 
