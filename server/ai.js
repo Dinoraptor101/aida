@@ -120,13 +120,23 @@ export function cleanEmotion(s, fallback = '') {
   return String(s || fallback).split(/[,;(]/)[0].trim().slice(0, 24) || fallback
 }
 
+// Format the tail of a partner's emotional bank into prompt lines. `withSource`
+// prefixes each note with its direction (you→them / them→you). One place so the
+// note format can't drift between the read, the send-gate, and the perspective.
+function formatBank(bank, { limit = 6, withSource = false } = {}) {
+  return (bank || [])
+    .slice(-limit)
+    .map((n) => {
+      const dir = withSource ? `${n.source === 'me' ? 'you→them' : 'them→you'}: ` : ''
+      return `${dir}${n.emotion}(${n.intensity}) — ${n.context}`
+    })
+    .join('\n')
+}
+
 // ── RECEIVE: read an incoming message, grounded in the person ──────────────
 export async function readIncoming(partner, text, history = []) {
   const hasBaseline = !!(partner?.baseline?.summary)
-  const bankNote = (partner?.bank || [])
-    .slice(-6)
-    .map((n) => `${n.emotion}(${n.intensity}) — ${n.context}`)
-    .join('\n')
+  const bankNote = formatBank(partner?.bank)
   const ctx = hasBaseline
     ? `BASELINE for ${partner.name}:\n${partner.baseline.summary}\n` +
       `Resting tone: ${partner.baseline.baselineTone || '—'}\n` +
@@ -176,10 +186,7 @@ export async function readIncoming(partner, text, history = []) {
 // the per-person baseline + emotional history (theory-of-mind, not a flat rule).
 export async function checkOutgoing(partner, draft) {
   const hasBaseline = !!(partner?.baseline?.summary)
-  const bankNote = (partner?.bank || [])
-    .slice(-6)
-    .map((n) => `${n.emotion}(${n.intensity}) — ${n.context}`)
-    .join('\n')
+  const bankNote = formatBank(partner?.bank)
   const ctx = hasBaseline
     ? `The user is about to send this TO ${partner.name}.\n` +
       `${partner.name}'s baseline:\n${partner.baseline.summary}\n` +
@@ -292,10 +299,7 @@ export async function synthesizePerspective(partner) {
     return { grounded: false, selfView: '', yourView: '', gap: '', theyKnow: [] }
   }
   const baseline = partner.baseline || {}
-  const bankNote = bank
-    .slice(-24)
-    .map((n) => `${n.source === 'me' ? 'you→them' : 'them→you'}: ${n.emotion}(${n.intensity}) — ${n.context}`)
-    .join('\n')
+  const bankNote = formatBank(bank, { limit: 24, withSource: true })
   const system =
     `${ACCESS}\n\nYou hold a PERSISTENT theory-of-mind for ONE person, ${name}, built ` +
     `only from how they write to the user and the emotional history below. This is NOT ` +

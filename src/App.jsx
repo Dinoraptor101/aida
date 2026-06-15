@@ -225,7 +225,7 @@ export default function App() {
             </button>
             <button
               className="appbar-id"
-              onClick={() => partner && setShowTom(true)}
+              onClick={() => setShowTom(true)}
               disabled={!partner}
               aria-haspopup="dialog"
               aria-label={partner ? `What Aida knows about ${partner.name}` : 'opening'}
