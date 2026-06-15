@@ -16,7 +16,10 @@ import { notify } from '../toast.js'
 // GATE RULE: [Approve] is enabled ONLY when the latest check is fresh AND safe.
 export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
   const [mode, setMode] = useState('them') // 'them' | 'me'
-  const [text, setText] = useState('')
+  // Per-mode drafts — switching Them/Me preserves each independently (no data loss).
+  const [texts, setTexts] = useState({ them: '', me: '' })
+  const text = texts[mode]
+  const setText = (v) => setTexts((t) => ({ ...t, [mode]: v }))
   const [busy, setBusy] = useState(false) // 'reading' | 'checking' | 'rewriting' | 'sending' | false
 
   // ME-mode draft state.
@@ -27,9 +30,7 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
 
   const switchMode = (m) => {
     if (m === mode) return
-    setMode(m)
-    setText('')
-    resetDraft()
+    setMode(m) // text + check state are per-mode and preserved — no data loss
   }
 
   const resetDraft = () => {
@@ -43,7 +44,7 @@ export default function Composer({ onReceive, onCheck, onRewrite, onSend }) {
   // mark it stale, so the composer height doesn't change while typing.
   const onText = (v) => {
     setText(v)
-    if (check) setStale(true)
+    if (mode === 'me' && check) setStale(true)
   }
 
   // THEM — receive an incoming message.
