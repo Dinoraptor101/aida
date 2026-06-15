@@ -11,6 +11,11 @@
 import Anthropic from '@anthropic-ai/sdk'
 
 const MODEL = process.env.AIDA_MODEL || 'claude-opus-4-8'
+// A cheaper/faster model for passes that never block a read or a send: the
+// one-time baseline derivation and the background bank-note. The user-facing
+// theory-of-mind (reads, the send gate, the perspective panel, repair) stays on
+// MODEL (Opus) — that's the product. Override either via env.
+const FAST_MODEL = process.env.AIDA_FAST_MODEL || 'claude-haiku-4-5'
 
 let _client = null
 function client() {
@@ -42,13 +47,13 @@ export function extractJson(text) {
   throw new Error('unbalanced JSON in model output')
 }
 
-async function callJson({ system, user, maxTokens = 900 }) {
+async function callJson({ system, user, maxTokens = 900, model = MODEL }) {
   // The SDK retries transient API errors; here we also retry a malformed-JSON
   // response once (the model occasionally fences it or trails prose).
   let lastErr
   for (let attempt = 0; attempt < 2; attempt++) {
     const res = await client().messages.create({
-      model: MODEL,
+      model,
       max_tokens: maxTokens,
       system,
       messages: [{ role: 'user', content: user }],
@@ -97,7 +102,7 @@ export async function deriveBaseline(name, messages) {
     `Return ONLY JSON: {"summary":"<2 sentences: warmth, directness, punctuation, ` +
     `emoji, length>","markers":["<short habit>","..."],"baselineTone":"<1-2 words>"}`
   const user = `Past messages from ${name}:\n${sample}\n\nLearn ${name}'s baseline.`
-  const { json } = await callJson({ system, user, maxTokens: 600 })
+  const { json } = await callJson({ system, user, maxTokens: 600, model: FAST_MODEL })
   return {
     summary: String(json.summary || '').slice(0, 600),
     markers: Array.isArray(json.markers) ? json.markers.slice(0, 6) : [],
@@ -277,7 +282,7 @@ export async function readSelf(partner, text) {
     `JSON: {"notes":[{"emotion":"<word>","intensity":<0..1>,"context":"<short why>"}]}`
   const user = `The user just sent ${partner?.name || 'them'}: "${text}"\n\nWhat emotion does it carry?`
   try {
-    const { json } = await callJson({ system, user, maxTokens: 400 })
+    const { json } = await callJson({ system, user, maxTokens: 400, model: FAST_MODEL })
     return cleanNotes(json.notes, 'me')
   } catch {
     return []
