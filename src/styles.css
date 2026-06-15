@@ -785,6 +785,141 @@ input, textarea {
   line-height: 1.45;
 }
 
+/* ── Theory-of-mind panel — "What Aida knows about [Person]" ──────────────── */
+
+/* The header identity becomes a calm affordance that opens the ToM panel. */
+.appbar-id {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  padding: 4px;
+  margin: -4px;
+  text-align: left;
+  color: inherit;
+  border-radius: var(--radius-sm);
+}
+.appbar-id:hover:not(:disabled) { background: rgba(176, 132, 99, 0.06); }
+.appbar-id:disabled { cursor: default; }
+.appbar-id .tom-chevron {
+  color: var(--ink-faint);
+  font-size: 20px;
+  line-height: 1;
+  flex: none;
+  margin-left: 2px;
+}
+
+/* A soft scrim; the panel descends from under the header. Floating overlay —
+   never shifts the conversation underneath. */
+.tom-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(43, 43, 43, 0.22);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: calc(env(safe-area-inset-top, 0px) + 64px) 12px 12px;
+  animation: tom-fade 0.18s ease-out;
+}
+@keyframes tom-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.tom-panel {
+  width: min(100%, 406px);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--paper);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 14px 40px rgba(43, 43, 43, 0.2);
+  animation: tom-rise 0.2s ease-out;
+}
+@keyframes tom-rise {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tom-scrim, .tom-panel { animation: none; }
+}
+
+.tom-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 15px 16px 12px;
+  border-bottom: 1px solid var(--hairline);
+  position: sticky;
+  top: 0;
+  background: var(--paper);
+}
+.tom-title { font-weight: 600; font-size: 15.5px; }
+.tom-close {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 22px;
+  line-height: 1;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  border-radius: var(--radius-sm);
+}
+.tom-close:hover { color: var(--ink); }
+
+.tom-body { padding: 15px 16px 17px; }
+
+/* The gap leads — the headline of the whole panel. A faint accent wash so the
+   eye lands here first. */
+.tom-gap {
+  background: var(--accent-wash);
+  border: 1px solid #e3d6c9;
+  border-radius: var(--radius-sm);
+  padding: 12px 13px;
+}
+.tom-gap p { margin: 0; color: var(--ink); line-height: 1.5; font-size: 15px; }
+
+.tom-views { margin-top: 14px; display: flex; flex-direction: column; gap: 13px; }
+.tom-view p { margin: 0; color: var(--ink-soft); line-height: 1.5; font-size: 14px; }
+
+.tom-remember {
+  margin-top: 15px;
+  padding-top: 13px;
+  border-top: 1px solid var(--hairline);
+}
+.tom-remember ul { list-style: none; margin: 4px 0 0; padding: 0; }
+.tom-remember li {
+  position: relative;
+  padding-left: 16px;
+  margin-top: 7px;
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.tom-remember li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.tom-foot {
+  margin: 16px 0 0;
+  color: var(--ink-faint);
+  font-size: 12px;
+  line-height: 1.5;
+  font-style: italic;
+}
+
 /* The very first load. */
 .boot {
   flex: 1;

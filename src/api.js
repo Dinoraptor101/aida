@@ -7,6 +7,7 @@
 //   Baseline = { summary, markers[], baselineTone }
 //   Read     = { emotion, intensity, grounded, chargedSpan, read, because, divergence, reasoning? }
 //   Check    = { emotion, intensity, mirror, safe, warning, reframe }
+//   Perspective = { grounded, selfView, yourView, gap, theyKnow[] }  (the persistent ToM)
 //   Message  = { id, from:"them"|"me", text, read?, at }
 //   Partner  = { id, name, baseline|null, bank[], thread[] }
 
@@ -43,6 +44,11 @@ export const api = {
 
   // GET /api/partners/:id -> Partner (full: includes bank[] and thread[])
   partner: (id) => fetch(`/api/partners/${id}`).then(j),
+
+  // GET /api/partners/:id/perspective -> Perspective
+  // The persistent theory-of-mind, synthesized on demand from baseline + bank
+  // (ToM, not sentiment). No per-message cost — derived only when the panel opens.
+  perspective: (id) => fetch(`/api/partners/${id}/perspective`).then(j),
 
   // POST /api/partners/:id/receive {text} -> Read
   // Server appends the incoming message + read to thread and notes to bank.

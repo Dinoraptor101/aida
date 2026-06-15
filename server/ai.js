@@ -246,6 +246,62 @@ export async function readSelf(partner, text) {
   }
 }
 
+// ── PERSPECTIVE: the persistent per-person theory-of-mind ──────────────────
+// Synthesized ON DEMAND from the baseline + the emotional bank we already store
+// (no per-message cost). This is the heart of "ToM, not sentiment": rather than
+// scoring a message, it models the PERSON'S mind and surfaces the GAP between how
+// they experience their own messages and how the user tends to receive them.
+// "Remember THEM, not their words."
+export async function synthesizePerspective(partner) {
+  const name = partner?.name || 'this person'
+  const hasBaseline = !!(partner?.baseline?.summary)
+  const bank = partner?.bank || []
+  // Not enough learned yet → honest cold start; don't spend a model call.
+  if (!hasBaseline && bank.length < 3) {
+    return { grounded: false, selfView: '', yourView: '', gap: '', theyKnow: [] }
+  }
+  const baseline = partner.baseline || {}
+  const bankNote = bank
+    .slice(-24)
+    .map((n) => `${n.source === 'me' ? 'you→them' : 'them→you'}: ${n.emotion}(${n.intensity}) — ${n.context}`)
+    .join('\n')
+  const system =
+    `${ACCESS}\n\nYou hold a PERSISTENT theory-of-mind for ONE person, ${name}, built ` +
+    `only from how they write to the user and the emotional history below. This is NOT ` +
+    `a personality score or a verdict about who they ARE — it models how THEY likely ` +
+    `experience their own messages versus how the user tends to receive them. The user's ` +
+    `default failure is to read ambiguity as a THREAT; your job is to make the GAP between ` +
+    `those two minds visible so it can be bridged.\n\n` +
+    `RULES:\n` +
+    `- Tentative, relational, warm: "reads as…", "${name} likely…", "you tend to…". Never a verdict.\n` +
+    `- LEAD with the gap: the concrete difference between their intent and the user's reading ` +
+    `(e.g. "${name} reads their own teasing as affection; you read it as an attack").\n` +
+    `- Ground every line in the baseline + emotional history below, never generic advice.\n` +
+    `- "theyKnow" = 2-4 durable, specific things worth REMEMBERING about ${name} (their patterns, ` +
+    `what their tones usually mean for them) — the relationship's memory made visible.\n` +
+    `- If the history is thin, say so honestly and keep claims small.\n\n` +
+    `Return ONLY JSON: {"selfView":"<1 sentence: how ${name} likely experiences their own way of writing to the user>",` +
+    `"yourView":"<1 sentence: how the user tends to read ${name}, naming the threat-default if present>",` +
+    `"gap":"<1 sentence: the core space between those two views, the thing to bridge>",` +
+    `"theyKnow":["<short durable truth>","..."]}`
+  const ctx =
+    `BASELINE for ${name}:\n${baseline.summary || '—'}\n` +
+    `Resting tone: ${baseline.baselineTone || '—'}\n` +
+    `Habits: ${(baseline.markers || []).join('; ') || '—'}\n` +
+    (bankNote ? `\nEmotional history (both directions, recent):\n${bankNote}` : '\n(No emotional history yet.)')
+  const user = `${ctx}\n\nSynthesize Aida's current theory-of-mind for ${name}.`
+  const { json } = await callJson({ system, user, maxTokens: 700 })
+  return {
+    grounded: true,
+    selfView: String(json.selfView || '').slice(0, 300),
+    yourView: String(json.yourView || '').slice(0, 300),
+    gap: String(json.gap || '').slice(0, 300),
+    theyKnow: Array.isArray(json.theyKnow)
+      ? json.theyKnow.map((t) => String(t).slice(0, 160)).filter(Boolean).slice(0, 4)
+      : [],
+  }
+}
+
 // ── Repair (4th-wall): apply the user's correction to the last incoming read ─
 export async function applyRepair(partner, lastMessageText, note) {
   const system =
