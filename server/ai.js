@@ -205,8 +205,10 @@ export async function checkOutgoing(partner, draft) {
     `misread — e.g. "blood bath" literally reads as violence even if they meant a busy sale day ` +
     `(this holds regardless of the person).\n` +
     `   When unsafe, give a gentle warning and a reframe that keeps their INTENT without the wound ` +
-    `or the dangerous misread. Bluntness, disagreement, or bad news is NOT unsafe — those stay ` +
-    `safe:true.\n` +
+    `or the dangerous misread. For a type-(a) wound when you HAVE a baseline, phrase the "warning" ` +
+    `RELATIVE to this person — compare it to how they usually communicate (e.g. "for ${partner?.name || 'them'}, ` +
+    `this lands harder than how you two usually talk"), not a generic "this is harsh"; on cold start keep the ` +
+    `warning generic. Bluntness, disagreement, or bad news is NOT unsafe — those stay safe:true.\n` +
     `   On COLD START (no baseline), don't assume they tolerate strong language — lean cautious.\n\n` +
     `Tentative, never scolding. Classify "family" as EXACTLY ONE of: ${FAMILY_LIST}. ` +
     `Return ONLY JSON: {"emotion":"<1-2 words>","family":"<one of the 10>",` +
