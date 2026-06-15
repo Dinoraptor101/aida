@@ -169,29 +169,51 @@ export async function readIncoming(partner, text, history = []) {
   }
 }
 
-// ── SEND: mirror the emotion of a draft; gate if it would wound ────────────
+// ── SEND: mirror the emotion of a draft; gate if it would wound — RELATIVE to
+// how THIS person communicates. The same words land differently on different
+// people: profanity/bluntness/teasing that matches their register is fine; the
+// SAME words to someone whose baseline is gentle or formal can wound. Grounded in
+// the per-person baseline + emotional history (theory-of-mind, not a flat rule).
 export async function checkOutgoing(partner, draft) {
-  const ctx = partner?.baseline?.summary
-    ? `The user is about to send this TO ${partner.name}, who normally writes: ${partner.baseline.summary}`
-    : `The user is about to send this message.`
+  const hasBaseline = !!(partner?.baseline?.summary)
+  const bankNote = (partner?.bank || [])
+    .slice(-6)
+    .map((n) => `${n.emotion}(${n.intensity}) — ${n.context}`)
+    .join('\n')
+  const ctx = hasBaseline
+    ? `The user is about to send this TO ${partner.name}.\n` +
+      `${partner.name}'s baseline:\n${partner.baseline.summary}\n` +
+      `Resting tone: ${partner.baseline.baselineTone || '—'}\n` +
+      `Habits: ${(partner.baseline.markers || []).join('; ') || '—'}` +
+      (bankNote ? `\n\nEmotional history (recent notes):\n${bankNote}` : '')
+    : `The user is about to send this message. You have NO baseline for ` +
+      `${partner?.name || 'this person'} — COLD START.`
   const system =
     `${ACCESS}\n\nThe user cannot feel how their own words land; their directness is ` +
     `often misread as rudeness. Two jobs:\n` +
     `1) MIRROR the emotion the draft actually carries back to them (so they can check ` +
     `it matches what they meant).\n` +
     `2) GATE — set safe:false in EITHER case:\n` +
-    `   (a) it would genuinely WOUND the recipient (attacks their character/identity, contempt, cruelty); OR\n` +
-    `   (b) its literal wording carries an alarming/DANGEROUS connotation (violence, death, self-harm, threats) ` +
-    `that likely diverges from the user's benign intent and could be badly misread — e.g. "blood bath" literally ` +
-    `reads as violence even if they meant a busy sale day.\n` +
-    `   When unsafe, give a gentle warning and a reframe that keeps their INTENT without the wound or the ` +
-    `dangerous misread. Bluntness, disagreement, or bad news is NOT unsafe — those stay safe:true.\n\n` +
+    `   (a) it would genuinely WOUND **this specific recipient**, judged RELATIVE to how ` +
+    `THEY communicate (the baseline + history above), not a universal standard. Language that ` +
+    `MATCHES their own register — profanity, bluntness, teasing, sarcasm they use too — is ` +
+    `NOT a wound to them; the SAME words sent to someone whose baseline is gentle or formal ` +
+    `CAN wound. Ground the call in their norms. (Attacks on their character/identity, contempt, ` +
+    `or cruelty wound almost anyone.) OR\n` +
+    `   (b) its literal wording carries an alarming/DANGEROUS connotation (violence, death, ` +
+    `self-harm, threats) that likely diverges from the user's benign intent and could be badly ` +
+    `misread — e.g. "blood bath" literally reads as violence even if they meant a busy sale day ` +
+    `(this holds regardless of the person).\n` +
+    `   When unsafe, give a gentle warning and a reframe that keeps their INTENT without the wound ` +
+    `or the dangerous misread. Bluntness, disagreement, or bad news is NOT unsafe — those stay ` +
+    `safe:true.\n` +
+    `   On COLD START (no baseline), don't assume they tolerate strong language — lean cautious.\n\n` +
     `Tentative, never scolding. Classify "family" as EXACTLY ONE of: ${FAMILY_LIST}. ` +
     `Return ONLY JSON: {"emotion":"<1-2 words>","family":"<one of the 10>",` +
     `"intensity":<0..1>,"mirror":"<one sentence: the emotion these words carry>",` +
     `"safe":<bool>,"warning":"<if unsafe: one gentle sentence, else "">",` +
     `"reframe":"<if unsafe: a rewrite preserving intent without the wound, else "">"}`
-  const user = `${ctx}\n\nDraft:\n"${draft}"\n\nMirror its emotion and gate it.`
+  const user = `${ctx}\n\nDraft:\n"${draft}"\n\nMirror its emotion and gate it for ${partner?.name || 'them'}.`
   const { json } = await callJson({ system, user, maxTokens: 700 })
   return {
     emotion: cleanEmotion(json.emotion),
@@ -206,16 +228,23 @@ export async function checkOutgoing(partner, draft) {
 
 // ── SEND: rewrite a draft to match the user's stated intent, then re-check ──
 export async function rewriteToIntent(partner, draft, intent) {
+  const hasBaseline = !!(partner?.baseline?.summary)
+  const ctx = hasBaseline
+    ? `The recipient, ${partner.name}, normally writes: ${partner.baseline.summary}` +
+      (partner.baseline.baselineTone ? ` (resting tone: ${partner.baseline.baselineTone})` : '')
+    : `There is no baseline for the recipient — keep it warm but not over-familiar.`
   const system =
     `${ACCESS}\n\nThe user wrote a draft, but it may not carry the emotion they MEANT. ` +
     `Rewrite the draft so it conveys their stated intent cleanly and without wounding ` +
-    `the recipient — keep it in the user's own voice, concise. Then mirror the new ` +
-    `emotion and gate it.\n\n` +
+    `${partner?.name || 'the recipient'} — keep it in the user's own voice, concise, and ` +
+    `pitched to how THIS recipient communicates (match their register: don't strip language ` +
+    `they'd be comfortable with, don't add formality the user wouldn't use). Then mirror the ` +
+    `new emotion and gate it RELATIVE to this person.\n\n` +
     `Classify "family" as EXACTLY ONE of: ${FAMILY_LIST}. ` +
     `Return ONLY JSON: {"rewritten":"<the rewritten message>","emotion":"<1-2 words>","family":"<one of the 10>",` +
     `"intensity":<0..1>,"mirror":"<the emotion it now carries>","safe":<bool>,` +
     `"warning":"<if still unsafe, else "">","reframe":"<if still unsafe, else "">"}`
-  const user = `Draft: "${draft}"\n\nWhat the user actually means: "${intent}"\n\nRewrite to match the intent, then check.`
+  const user = `${ctx}\n\nDraft: "${draft}"\n\nWhat the user actually means: "${intent}"\n\nRewrite to match the intent, then check.`
   const { json } = await callJson({ system, user, maxTokens: 800 })
   return {
     rewritten: String(json.rewritten || draft).slice(0, 600),
