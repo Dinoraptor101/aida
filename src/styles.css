@@ -773,11 +773,6 @@ input, textarea {
 }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
 
-.row-working {
-  align-self: flex-start;
-  margin: 2px 4px 4px;
-}
-
 .inline-error {
   color: var(--alarm-ink);
   font-size: 13px;
