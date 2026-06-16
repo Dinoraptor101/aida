@@ -27,7 +27,7 @@ no external emotion taxonomy** (project LAW).
 ```bash
 npm install
 # .env needs: ANTHROPIC_API_KEY=sk-ant-…   (gitignored; a remote session must supply it as a secret)
-#             AIDA_MODEL=claude-opus-4-8
+#             AIDA_MODEL=claude-opus-4-5-20250514
 npm run dev      # vite (5173) + express api (8787), HMR
 npm run build && npm start   # production: express serves dist + api on 8787
 npm test         # 14 node:test unit tests (emotions classify, extractJson, cleanEmotion)
@@ -37,7 +37,7 @@ CI (GitHub Actions) runs `npm ci + test + build` on push to `main`/`polish` and 
 
 ## Architecture map
 
-- `server/ai.js` — the **Opus 4.8 engine**: deriveBaseline, readIncoming, checkOutgoing,
+- `server/ai.js` — the **Opus 4.5 engine**: deriveBaseline, readIncoming, checkOutgoing,
   rewriteToIntent, readSelf, applyRepair. Tags each read with one of **10 emotion
   families**. Graceful: SDK retries + malformed-JSON retry; routes fall back, never raw 500s.
 - `server/store.js` — JSON-file store (`data/store.json`). Per partner: `baseline`,
