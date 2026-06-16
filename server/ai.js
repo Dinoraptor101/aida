@@ -1,4 +1,4 @@
-// The Aida reasoning engine. Opus 4.8 turns text into structured EMOTIONAL NOTES
+// The Aida reasoning engine. Opus 4.5 turns text into structured EMOTIONAL NOTES
 // and reads each message as a deviation from a specific person's baseline —
 // theory-of-mind, not flat sentiment. The functional emotions are the product.
 //
@@ -10,7 +10,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 
-const MODEL = process.env.AIDA_MODEL || 'claude-opus-4-8'
+const MODEL = process.env.AIDA_MODEL || 'claude-opus-4-5-20250514'
 // A cheaper/faster model for passes that never block a read or a send: the
 // one-time baseline derivation and the background bank-note. The user-facing
 // theory-of-mind (reads, the send gate, the perspective panel, repair) stays on

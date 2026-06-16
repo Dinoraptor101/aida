@@ -41,7 +41,7 @@ const FALLBACK = {
   }),
 }
 
-const MODEL = process.env.AIDA_MODEL || 'claude-opus-4-8'
+const MODEL = process.env.AIDA_MODEL || 'claude-opus-4-5-20250514'
 
 // A1 — live URL responds.
 app.get('/api/health', (_req, res) => ok(res, { ok: true, service: 'aida', model: MODEL }))
