@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { api } from './api.js'
 import PartnerPicker from './components/PartnerPicker.jsx'
 import Thread from './components/Thread.jsx'
+import PerspectivePanel from './components/PerspectivePanel.jsx'
 import { initials, Working } from './components/Bits.jsx'
 import ToastHost from './components/ToastHost.jsx'
 import { notify } from './toast.js'
@@ -28,6 +29,7 @@ export default function App() {
 
   const [pending, setPending] = useState(null) // optimistic incoming bubble
   const [repairingId, setRepairingId] = useState(null)
+  const [showTom, setShowTom] = useState(false) // "What Aida knows" panel open?
 
   // Health (quiet status line). Failure is non-fatal.
   useEffect(() => {
@@ -64,6 +66,7 @@ export default function App() {
     setPartner(null)
     setPending(null)
     setPartnerError('')
+    setShowTom(false)
     setPartnerLoading(true)
     try {
       const p = await api.partner(id)
@@ -80,8 +83,12 @@ export default function App() {
     setPartner(null)
     setPending(null)
     setPartnerError('')
+    setShowTom(false)
     loadPartners() // refresh counts/baseline flags
   }
+
+  // Stable so PerspectivePanel's key/focus effects don't re-subscribe each render.
+  const closeTom = useCallback(() => setShowTom(false), [])
 
   // Create a new partner and open them.
   const createPartner = useCallback(async (name, seedMessages) => {
@@ -216,20 +223,41 @@ export default function App() {
             <button className="back" onClick={back} aria-label="Back to your people">
               ‹
             </button>
-            <span className="avatar" aria-hidden="true">
-              {initials(partner?.name || '')}
-            </span>
-            <div className="appbar-title">
-              <span className="name">{partner?.name || '…'}</span>
-              <span className="sub">
-                {partner
-                  ? partner.baseline
-                    ? `Aida has learned how ${partner.name} writes`
-                    : 'Aida is still learning how they write'
-                  : 'opening…'}
+            <button
+              className="appbar-id"
+              onClick={() => setShowTom(true)}
+              disabled={!partner}
+              aria-haspopup="dialog"
+              aria-label={partner ? `What Aida knows about ${partner.name}` : 'opening'}
+            >
+              <span className="avatar" aria-hidden="true">
+                {initials(partner?.name || '')}
               </span>
-            </div>
+              <span className="appbar-title">
+                <span className="name">{partner?.name || '…'}</span>
+                <span className="sub">
+                  {partner
+                    ? partner.baseline
+                      ? `what Aida knows about ${partner.name}`
+                      : 'Aida is still learning how they write'
+                    : 'opening…'}
+                </span>
+              </span>
+              {partner && (
+                <span className="tom-chevron" aria-hidden="true">
+                  ›
+                </span>
+              )}
+            </button>
           </header>
+
+          {showTom && partner && (
+            <PerspectivePanel
+              partnerId={partner.id}
+              partnerName={partner.name}
+              onClose={closeTom}
+            />
+          )}
 
           {partnerLoading ? (
             <div className="boot">

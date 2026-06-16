@@ -11,6 +11,11 @@
 import Anthropic from '@anthropic-ai/sdk'
 
 const MODEL = process.env.AIDA_MODEL || 'claude-opus-4-8'
+// A cheaper/faster model for passes that never block a read or a send: the
+// one-time baseline derivation and the background bank-note. The user-facing
+// theory-of-mind (reads, the send gate, the perspective panel, repair) stays on
+// MODEL (Opus) — that's the product. Override either via env.
+const FAST_MODEL = process.env.AIDA_FAST_MODEL || 'claude-haiku-4-5'
 
 let _client = null
 function client() {
@@ -42,13 +47,13 @@ export function extractJson(text) {
   throw new Error('unbalanced JSON in model output')
 }
 
-async function callJson({ system, user, maxTokens = 900 }) {
+async function callJson({ system, user, maxTokens = 900, model = MODEL }) {
   // The SDK retries transient API errors; here we also retry a malformed-JSON
   // response once (the model occasionally fences it or trails prose).
   let lastErr
   for (let attempt = 0; attempt < 2; attempt++) {
     const res = await client().messages.create({
-      model: MODEL,
+      model,
       max_tokens: maxTokens,
       system,
       messages: [{ role: 'user', content: user }],
@@ -97,7 +102,7 @@ export async function deriveBaseline(name, messages) {
     `Return ONLY JSON: {"summary":"<2 sentences: warmth, directness, punctuation, ` +
     `emoji, length>","markers":["<short habit>","..."],"baselineTone":"<1-2 words>"}`
   const user = `Past messages from ${name}:\n${sample}\n\nLearn ${name}'s baseline.`
-  const { json } = await callJson({ system, user, maxTokens: 600 })
+  const { json } = await callJson({ system, user, maxTokens: 600, model: FAST_MODEL })
   return {
     summary: String(json.summary || '').slice(0, 600),
     markers: Array.isArray(json.markers) ? json.markers.slice(0, 6) : [],
@@ -120,13 +125,23 @@ export function cleanEmotion(s, fallback = '') {
   return String(s || fallback).split(/[,;(]/)[0].trim().slice(0, 24) || fallback
 }
 
+// Format the tail of a partner's emotional bank into prompt lines. `withSource`
+// prefixes each note with its direction (you→them / them→you). One place so the
+// note format can't drift between the read, the send-gate, and the perspective.
+function formatBank(bank, { limit = 6, withSource = false } = {}) {
+  return (bank || [])
+    .slice(-limit)
+    .map((n) => {
+      const dir = withSource ? `${n.source === 'me' ? 'you→them' : 'them→you'}: ` : ''
+      return `${dir}${n.emotion}(${n.intensity}) — ${n.context}`
+    })
+    .join('\n')
+}
+
 // ── RECEIVE: read an incoming message, grounded in the person ──────────────
 export async function readIncoming(partner, text, history = []) {
   const hasBaseline = !!(partner?.baseline?.summary)
-  const bankNote = (partner?.bank || [])
-    .slice(-6)
-    .map((n) => `${n.emotion}(${n.intensity}) — ${n.context}`)
-    .join('\n')
+  const bankNote = formatBank(partner?.bank)
   const ctx = hasBaseline
     ? `BASELINE for ${partner.name}:\n${partner.baseline.summary}\n` +
       `Resting tone: ${partner.baseline.baselineTone || '—'}\n` +
@@ -169,29 +184,50 @@ export async function readIncoming(partner, text, history = []) {
   }
 }
 
-// ── SEND: mirror the emotion of a draft; gate if it would wound ────────────
+// ── SEND: mirror the emotion of a draft; gate if it would wound — RELATIVE to
+// how THIS person communicates. The same words land differently on different
+// people: profanity/bluntness/teasing that matches their register is fine; the
+// SAME words to someone whose baseline is gentle or formal can wound. Grounded in
+// the per-person baseline + emotional history (theory-of-mind, not a flat rule).
 export async function checkOutgoing(partner, draft) {
-  const ctx = partner?.baseline?.summary
-    ? `The user is about to send this TO ${partner.name}, who normally writes: ${partner.baseline.summary}`
-    : `The user is about to send this message.`
+  const hasBaseline = !!(partner?.baseline?.summary)
+  const bankNote = formatBank(partner?.bank)
+  const ctx = hasBaseline
+    ? `The user is about to send this TO ${partner.name}.\n` +
+      `${partner.name}'s baseline:\n${partner.baseline.summary}\n` +
+      `Resting tone: ${partner.baseline.baselineTone || '—'}\n` +
+      `Habits: ${(partner.baseline.markers || []).join('; ') || '—'}` +
+      (bankNote ? `\n\nEmotional history (recent notes):\n${bankNote}` : '')
+    : `The user is about to send this message. You have NO baseline for ` +
+      `${partner?.name || 'this person'} — COLD START.`
   const system =
     `${ACCESS}\n\nThe user cannot feel how their own words land; their directness is ` +
     `often misread as rudeness. Two jobs:\n` +
     `1) MIRROR the emotion the draft actually carries back to them (so they can check ` +
     `it matches what they meant).\n` +
     `2) GATE — set safe:false in EITHER case:\n` +
-    `   (a) it would genuinely WOUND the recipient (attacks their character/identity, contempt, cruelty); OR\n` +
-    `   (b) its literal wording carries an alarming/DANGEROUS connotation (violence, death, self-harm, threats) ` +
-    `that likely diverges from the user's benign intent and could be badly misread — e.g. "blood bath" literally ` +
-    `reads as violence even if they meant a busy sale day.\n` +
-    `   When unsafe, give a gentle warning and a reframe that keeps their INTENT without the wound or the ` +
-    `dangerous misread. Bluntness, disagreement, or bad news is NOT unsafe — those stay safe:true.\n\n` +
+    `   (a) it would genuinely WOUND **this specific recipient**, judged RELATIVE to how ` +
+    `THEY communicate (the baseline + history above), not a universal standard. Language that ` +
+    `MATCHES their own register — profanity, bluntness, teasing, sarcasm they use too — is ` +
+    `NOT a wound to them; the SAME words sent to someone whose baseline is gentle or formal ` +
+    `CAN wound. Ground the call in their norms. (Attacks on their character/identity, contempt, ` +
+    `or cruelty wound almost anyone.) OR\n` +
+    `   (b) its literal wording carries an alarming/DANGEROUS connotation (violence, death, ` +
+    `self-harm, threats) that likely diverges from the user's benign intent and could be badly ` +
+    `misread — e.g. "blood bath" literally reads as violence even if they meant a busy sale day ` +
+    `(this holds regardless of the person).\n` +
+    `   When unsafe, give a gentle warning and a reframe that keeps their INTENT without the wound ` +
+    `or the dangerous misread. For a type-(a) wound when you HAVE a baseline, phrase the "warning" ` +
+    `RELATIVE to this person — compare it to how they usually communicate (e.g. "for ${partner?.name || 'them'}, ` +
+    `this lands harder than how you two usually talk"), not a generic "this is harsh"; on cold start keep the ` +
+    `warning generic. Bluntness, disagreement, or bad news is NOT unsafe — those stay safe:true.\n` +
+    `   On COLD START (no baseline), don't assume they tolerate strong language — lean cautious.\n\n` +
     `Tentative, never scolding. Classify "family" as EXACTLY ONE of: ${FAMILY_LIST}. ` +
     `Return ONLY JSON: {"emotion":"<1-2 words>","family":"<one of the 10>",` +
     `"intensity":<0..1>,"mirror":"<one sentence: the emotion these words carry>",` +
     `"safe":<bool>,"warning":"<if unsafe: one gentle sentence, else "">",` +
     `"reframe":"<if unsafe: a rewrite preserving intent without the wound, else "">"}`
-  const user = `${ctx}\n\nDraft:\n"${draft}"\n\nMirror its emotion and gate it.`
+  const user = `${ctx}\n\nDraft:\n"${draft}"\n\nMirror its emotion and gate it for ${partner?.name || 'them'}.`
   const { json } = await callJson({ system, user, maxTokens: 700 })
   return {
     emotion: cleanEmotion(json.emotion),
@@ -206,16 +242,23 @@ export async function checkOutgoing(partner, draft) {
 
 // ── SEND: rewrite a draft to match the user's stated intent, then re-check ──
 export async function rewriteToIntent(partner, draft, intent) {
+  const hasBaseline = !!(partner?.baseline?.summary)
+  const ctx = hasBaseline
+    ? `The recipient, ${partner.name}, normally writes: ${partner.baseline.summary}` +
+      (partner.baseline.baselineTone ? ` (resting tone: ${partner.baseline.baselineTone})` : '')
+    : `There is no baseline for the recipient — keep it warm but not over-familiar.`
   const system =
     `${ACCESS}\n\nThe user wrote a draft, but it may not carry the emotion they MEANT. ` +
     `Rewrite the draft so it conveys their stated intent cleanly and without wounding ` +
-    `the recipient — keep it in the user's own voice, concise. Then mirror the new ` +
-    `emotion and gate it.\n\n` +
+    `${partner?.name || 'the recipient'} — keep it in the user's own voice, concise, and ` +
+    `pitched to how THIS recipient communicates (match their register: don't strip language ` +
+    `they'd be comfortable with, don't add formality the user wouldn't use). Then mirror the ` +
+    `new emotion and gate it RELATIVE to this person.\n\n` +
     `Classify "family" as EXACTLY ONE of: ${FAMILY_LIST}. ` +
     `Return ONLY JSON: {"rewritten":"<the rewritten message>","emotion":"<1-2 words>","family":"<one of the 10>",` +
     `"intensity":<0..1>,"mirror":"<the emotion it now carries>","safe":<bool>,` +
     `"warning":"<if still unsafe, else "">","reframe":"<if still unsafe, else "">"}`
-  const user = `Draft: "${draft}"\n\nWhat the user actually means: "${intent}"\n\nRewrite to match the intent, then check.`
+  const user = `${ctx}\n\nDraft: "${draft}"\n\nWhat the user actually means: "${intent}"\n\nRewrite to match the intent, then check.`
   const { json } = await callJson({ system, user, maxTokens: 800 })
   return {
     rewritten: String(json.rewritten || draft).slice(0, 600),
@@ -239,10 +282,63 @@ export async function readSelf(partner, text) {
     `JSON: {"notes":[{"emotion":"<word>","intensity":<0..1>,"context":"<short why>"}]}`
   const user = `The user just sent ${partner?.name || 'them'}: "${text}"\n\nWhat emotion does it carry?`
   try {
-    const { json } = await callJson({ system, user, maxTokens: 400 })
+    const { json } = await callJson({ system, user, maxTokens: 400, model: FAST_MODEL })
     return cleanNotes(json.notes, 'me')
   } catch {
     return []
+  }
+}
+
+// ── PERSPECTIVE: the persistent per-person theory-of-mind ──────────────────
+// Synthesized ON DEMAND from the baseline + the emotional bank we already store
+// (no per-message cost). This is the heart of "ToM, not sentiment": rather than
+// scoring a message, it models the PERSON'S mind and surfaces the GAP between how
+// they experience their own messages and how the user tends to receive them.
+// "Remember THEM, not their words."
+export async function synthesizePerspective(partner) {
+  const name = partner?.name || 'this person'
+  const hasBaseline = !!(partner?.baseline?.summary)
+  const bank = partner?.bank || []
+  // Not enough learned yet → honest cold start; don't spend a model call.
+  if (!hasBaseline && bank.length < 3) {
+    return { grounded: false, selfView: '', yourView: '', gap: '', theyKnow: [] }
+  }
+  const baseline = partner.baseline || {}
+  const bankNote = formatBank(bank, { limit: 24, withSource: true })
+  const system =
+    `${ACCESS}\n\nYou hold a PERSISTENT theory-of-mind for ONE person, ${name}, built ` +
+    `only from how they write to the user and the emotional history below. This is NOT ` +
+    `a personality score or a verdict about who they ARE — it models how THEY likely ` +
+    `experience their own messages versus how the user tends to receive them. The user's ` +
+    `default failure is to read ambiguity as a THREAT; your job is to make the GAP between ` +
+    `those two minds visible so it can be bridged.\n\n` +
+    `RULES:\n` +
+    `- Tentative, relational, warm: "reads as…", "${name} likely…", "you tend to…". Never a verdict.\n` +
+    `- LEAD with the gap: the concrete difference between their intent and the user's reading ` +
+    `(e.g. "${name} reads their own teasing as affection; you read it as an attack").\n` +
+    `- Ground every line in the baseline + emotional history below, never generic advice.\n` +
+    `- "theyKnow" = 2-4 durable, specific things worth REMEMBERING about ${name} (their patterns, ` +
+    `what their tones usually mean for them) — the relationship's memory made visible.\n` +
+    `- If the history is thin, say so honestly and keep claims small.\n\n` +
+    `Return ONLY JSON: {"selfView":"<1 sentence: how ${name} likely experiences their own way of writing to the user>",` +
+    `"yourView":"<1 sentence: how the user tends to read ${name}, naming the threat-default if present>",` +
+    `"gap":"<1 sentence: the core space between those two views, the thing to bridge>",` +
+    `"theyKnow":["<short durable truth>","..."]}`
+  const ctx =
+    `BASELINE for ${name}:\n${baseline.summary || '—'}\n` +
+    `Resting tone: ${baseline.baselineTone || '—'}\n` +
+    `Habits: ${(baseline.markers || []).join('; ') || '—'}\n` +
+    (bankNote ? `\nEmotional history (both directions, recent):\n${bankNote}` : '\n(No emotional history yet.)')
+  const user = `${ctx}\n\nSynthesize Aida's current theory-of-mind for ${name}.`
+  const { json } = await callJson({ system, user, maxTokens: 700 })
+  return {
+    grounded: true,
+    selfView: String(json.selfView || '').slice(0, 300),
+    yourView: String(json.yourView || '').slice(0, 300),
+    gap: String(json.gap || '').slice(0, 300),
+    theyKnow: Array.isArray(json.theyKnow)
+      ? json.theyKnow.map((t) => String(t).slice(0, 160)).filter(Boolean).slice(0, 4)
+      : [],
   }
 }
 

@@ -11,6 +11,7 @@ import {
   rewriteToIntent,
   readSelf,
   applyRepair,
+  synthesizePerspective,
 } from './ai.js'
 import * as store from './store.js'
 
@@ -35,6 +36,9 @@ const FALLBACK = {
     mirror: "Aida couldn't check this one just now — send it with care.",
     safe: true, warning: '', reframe: '',
   }),
+  perspective: () => ({
+    grounded: false, error: true, selfView: '', yourView: '', gap: '', theyKnow: [],
+  }),
 }
 
 const MODEL = process.env.AIDA_MODEL || 'claude-opus-4-8'
@@ -49,6 +53,20 @@ app.get('/api/partners/:id', (req, res) => {
   const p = store.getPartner(req.params.id)
   if (need(res, p)) return
   ok(res, p)
+})
+
+// PERSPECTIVE — the persistent per-person theory-of-mind, synthesized on demand
+// from the stored baseline + bank (no per-message cost). Powers the
+// "What Aida knows about [Person]" panel; leads with the gap between two minds.
+app.get('/api/partners/:id/perspective', async (req, res) => {
+  try {
+    const p = store.getPartner(req.params.id)
+    if (need(res, p)) return
+    ok(res, await synthesizePerspective(p))
+  } catch (e) {
+    console.error('[aida] perspective failed:', e?.message)
+    ok(res, FALLBACK.perspective())
+  }
 })
 
 // Create a partner; seed their baseline from pasted past messages if provided.

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
-import { MarkedText, Working } from './Bits.jsx'
+import { MarkedText } from './Bits.jsx'
 import { emotionStyle } from '../emotions.js'
 import ReadCard from './ReadCard.jsx'
 import Composer from './Composer.jsx'
@@ -105,14 +105,13 @@ export default function Thread({
             )
           })}
 
-          {/* Optimistic incoming bubble while Opus reads it. */}
+          {/* Optimistic incoming bubble while Opus reads it. The "Aida is
+              reading…" activity lives in the composer input, not here — so it
+              isn't duplicated in the conversation. */}
           {pending && (
             <div>
               <div className="row them">
                 <div className="bubble them">{pending.text}</div>
-              </div>
-              <div className="row-working">
-                <Working label="Aida is reading this for you…" />
               </div>
             </div>
           )}
