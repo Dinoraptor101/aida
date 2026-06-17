@@ -30,7 +30,7 @@ npm install
 #             AIDA_MODEL=claude-opus-4-5-20250514
 npm run dev      # vite (5173) + express api (8787), HMR
 npm run build && npm start   # production: express serves dist + api on 8787
-npm test         # 14 node:test unit tests (emotions classify, extractJson, cleanEmotion)
+npm test         # 28 node:test unit tests (emotions classify, extractJson, cleanEmotion, formatBank, cleanNotes, cleanFamily)
 npm run grade    # model-verifiable rubric A1–A6 against a running BASE url
 ```
 CI (GitHub Actions) runs `npm ci + test + build` on push to `main`/`polish` and PRs to `main`.
