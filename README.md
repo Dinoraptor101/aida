@@ -6,6 +6,8 @@ The name (間, *aida*) is Japanese for "the space between" — the interval betw
 
 If captions make sound legible and screen readers make pixels legible, Aida makes **emotional subtext** legible. That is the whole of it.
 
+**Live demo:** https://aida-yxi3.onrender.com — a working sample. (Free hosting, so the first request after idle takes a few seconds to wake; the in-memory store resets on each deploy, so add a person and a couple of their messages to see Aida learn them.)
+
 ---
 
 ## What it is
@@ -106,9 +108,9 @@ The API and the app are served same-origin. Default port is `8787`.
 # against a locally running server
 npm run grade
 
-# or against any deployed URL
-node scripts/grade.mjs https://your-aida-url
-# (BASE=https://your-aida-url npm run grade also works)
+# or against the live demo (or any deployed URL)
+node scripts/grade.mjs https://aida-yxi3.onrender.com
+# (BASE=https://aida-yxi3.onrender.com npm run grade also works)
 ```
 
 It checks: **A1** health, **A3** incoming reads (≥ 80% match expected emotion *and* give a grounded, per-person rationale, graded against [`examples/incoming.json`](examples/incoming.json)), **A4** the outgoing gate (fires on every wound, false-alarms on none, graded against [`examples/outgoing.json`](examples/outgoing.json)), **A5** cold-start humility, and **A6** memory persistence. Exit code `0` only if all pass.
@@ -117,11 +119,15 @@ The seed sets are deliberately **ambiguous** — the right read depends on the *
 
 ---
 
-## What's next
+## Status
 
-- **Chrome extension** — Aida riding alongside Telegram, Discord, and other messengers as a side overlay (Phase 2).
-- **Audio in/out** — live voice and transcription, so the captions work on spoken conversation too.
-- **Full theory-of-mind** — the persistent self-versus-them divergence model ("they think X about themselves, you think Y"), once per-person baselines are trusted.
+This is a **sample** — a complete, working slice of the idea, now paused. What it does today:
+
+- **Per-person theory-of-mind** — a persistent perspective model (`selfView` / `yourView` / `gap`), synthesized on demand from each person's baseline and their emotional history. Tap a person's name to see *"What Aida knows about them,"* led by the gap between how they mean their words and how you read them.
+- **Emotional bank account** — bi-directional notes (them→you and you→them), auto-kept and fed back into every read, the send-gate, and the perspective model.
+- **Grounded RECEIVE + person-relative SEND gate**, 10-family colours, conversational repair, cold-start humility.
+
+If picked back up, the natural next steps are a Chrome extension (Telegram/Discord overlay), audio in/out, and real persistence + faster hosting — all out of scope for this sample.
 
 ---
 

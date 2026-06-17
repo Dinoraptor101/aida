@@ -30,7 +30,7 @@ npm install
 #             AIDA_MODEL=claude-opus-4-5-20250514
 npm run dev      # vite (5173) + express api (8787), HMR
 npm run build && npm start   # production: express serves dist + api on 8787
-npm test         # 14 node:test unit tests (emotions classify, extractJson, cleanEmotion)
+npm test         # 28 node:test unit tests (emotions classify, extractJson, cleanEmotion, formatBank, cleanNotes, cleanFamily)
 npm run grade    # model-verifiable rubric A1–A6 against a running BASE url
 ```
 CI (GitHub Actions) runs `npm ci + test + build` on push to `main`/`polish` and PRs to `main`.
@@ -67,19 +67,26 @@ CI (GitHub Actions) runs `npm ci + test + build` on push to `main`/`polish` and 
   single Send button, per-mode draft preservation, blank-clears-panel, toasts, 3-dot loader,
   tidy labels, colour legend, duplicate-Rewrite fix, CI/CD + branch protection.
 
-## ⬜ Next (in priority order)
+## ✅ Built since (the former roadmap, now done)
 
-1. **Full ToM** — the big one. Today only a one-line inline divergence exists. Build a
-   **persistent per-person perspective model**, synthesized **on demand** from the bank
-   we already store (no per-message cost): `{ selfView, yourView, gap, theyKnow }`.
-   Surface as a calm **"What Aida knows about [Person]"** panel from the thread header,
-   leading with the *gap* (e.g. "Joe reads his teasing as affection; you read it as attack").
-   This makes the bank **visible** — *"remember THEM, not their words."*
-2. **Infra cluster** — host migration (off Render → no cold-start) + **real DB** (replace the
-   JSON file; serverless has no disk) + latency (prompt-cache the system prompt + per-person
-   baseline; Haiku for the cheap family-classification pre-pass). These pair together.
-3. **Cost model** — Haiku pre-passes + caching to make freemium/ad-supported viable.
-4. Later — Somatic Practicing (inward), Chrome extension (Telegram/Discord), audio I/O.
+- **Full ToM** — the big one, shipped. A **persistent per-person perspective model**
+  (`{ selfView, yourView, gap, theyKnow }`), synthesized **on demand** from the bank
+  (no per-message cost), surfaced as the **"What Aida knows about [Person]"** panel from
+  the thread header and led by the *gap*. The bank is now **visible** — *"remember THEM,
+  not their words."*
+- **Person-relative SEND gate** — the wound-check judges against the recipient's own
+  register, not a universal standard (a heavy-cusser vs. someone an f-bomb would lose).
+- **Haiku/Opus split** — background passes (baseline, bank-note) on Haiku; all user-facing
+  reads on Opus. Model pinned to **Opus 4.5** for reliable introspection.
+- **Unit tests** — 28 node:test cases covering the pure helpers (formatBank, cleanNotes,
+  cleanFamily, extractJson, cleanEmotion, emotion classify).
+
+## ⏸ Paused — sample complete
+
+Development is paused; this repo stands as a working sample. If resumed, the natural next
+steps (all **out of scope** for the sample): real DB + faster hosting (the JSON store sits on
+an ephemeral disk; serverless has none), prompt-caching for latency, then Chrome extension
+(Telegram/Discord) and audio I/O. Somatic Practicing stays out.
 
 ## Anchor
 

@@ -28,6 +28,18 @@ test('throws when there is no JSON object', () => {
   assert.throws(() => extractJson('no json here'))
 })
 
+test('reads a bare ``` fenced block (no json language tag)', () => {
+  assert.deepEqual(extractJson('```\n{"a":3}\n```'), { a: 3 })
+})
+
+test('returns the first complete object when more text trails it', () => {
+  assert.deepEqual(extractJson('{"a":1} {"b":2}'), { a: 1 })
+})
+
+test('throws on an unbalanced/truncated object', () => {
+  assert.throws(() => extractJson('{"a":1, "b":'))
+})
+
 test('cleanEmotion drops trailing meta and trims', () => {
   assert.equal(cleanEmotion('alarm, intensity'), 'alarm')
   assert.equal(cleanEmotion('frustration (mild)'), 'frustration')

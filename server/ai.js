@@ -79,7 +79,7 @@ const ACCESS =
   `It is NOT therapy, diagnosis, or personality-typing; it translates communication.`
 
 // Clamp + shape a note the model returns.
-function cleanNotes(arr, source) {
+export function cleanNotes(arr, source) {
   if (!Array.isArray(arr)) return []
   return arr
     .filter((n) => n && n.emotion)
@@ -114,7 +114,7 @@ export async function deriveBaseline(name, messages) {
 // so the UI always has a colour; the client keyword classifier is only a fallback.
 const FAMILY_LIST = 'joy, sadness, anger, calm, fear, curiosity, disgust, surprise, love, determination'
 const FAMILY_SET = new Set(FAMILY_LIST.split(', '))
-function cleanFamily(f) {
+export function cleanFamily(f) {
   const v = String(f || '').toLowerCase().trim()
   return FAMILY_SET.has(v) ? v : null
 }
@@ -128,7 +128,7 @@ export function cleanEmotion(s, fallback = '') {
 // Format the tail of a partner's emotional bank into prompt lines. `withSource`
 // prefixes each note with its direction (you→them / them→you). One place so the
 // note format can't drift between the read, the send-gate, and the perspective.
-function formatBank(bank, { limit = 6, withSource = false } = {}) {
+export function formatBank(bank, { limit = 6, withSource = false } = {}) {
   return (bank || [])
     .slice(-limit)
     .map((n) => {
